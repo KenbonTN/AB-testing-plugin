@@ -1,0 +1,21 @@
+{
+  "name": "@ab-platform/worker",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "db:migrate": "wrangler d1 migrations apply ab-testing-db",
+    "db:studio": "wrangler d1 execute ab-testing-db --command"
+  },
+  "dependencies": {
+    "@ab-platform/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240227.0",
+    "typescript": "^5.0.0",
+    "wrangler": "^3.0.0",
+    "vitest": "^1.0.0"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "ab-testing-platform",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A/B Testing Platform for Framer",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "typecheck": "turbo run typecheck",
+    "deploy:worker": "pnpm --filter worker deploy",
+    "deploy:plugin": "pnpm --filter plugin build && echo 'Upload dist/ to Framer manually'",
+    "db:migrate": "pnpm --filter worker db:migrate",
+    "db:studio": "pnpm --filter worker db:studio"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "prettier": "^3.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

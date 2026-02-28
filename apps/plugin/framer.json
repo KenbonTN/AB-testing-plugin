@@ -1,0 +1,6 @@
+{
+  "id": "ab-testing-plugin",
+  "name": "A/B Testing",
+  "api": "1.0.0",
+  "icon": "/icon.svg"
+}
