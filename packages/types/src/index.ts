@@ -1,73 +1,61 @@
-// Core A/B Testing Types
+// Database Models
 
 export interface Experiment {
   id: string
   name: string
-  split: number // 0.5 for 50/50
+  split: number
   status: 'running' | 'paused' | 'completed'
-  winner?: 'A' | 'B' | null
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface Variant {
-  experimentId: string
-  name: 'A' | 'B'
-  impressions: number
-  conversions: number
-  conversionRate: number
+  winner: 'A' | 'B' | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Assignment {
-  experimentId: string
-  userId: string
+  user_id: string
+  experiment_id: string
   variant: 'A' | 'B'
-  createdAt: Date
+  created_at: string
 }
 
-export interface ConversionEvent {
-  experimentId: string
+export interface Impression {
+  id: number
+  experiment_id: string
   variant: 'A' | 'B'
-  userId: string
-  type: 'click' | 'submit' | 'custom'
-  metadata?: Record<string, any>
-  timestamp: Date
+  user_id: string | null
+  timestamp: string
+}
+
+export interface Conversion {
+  id: number
+  experiment_id: string
+  variant: 'A' | 'B'
+  user_id: string | null
+  timestamp: string
 }
 
 // API Request/Response Types
+
 export interface AssignVariantRequest {
-  experimentId: string
-  userId?: string // Optional - server generates if missing
+  experiment_id: string
+  user_id?: string
 }
 
 export interface AssignVariantResponse {
   variant: 'A' | 'B'
-  experimentId: string
-  userId: string
+  experiment_id: string
+  user_id: string
 }
 
-export interface TrackConversionRequest {
-  experimentId: string
+export interface TrackEventRequest {
+  experiment_id: string
   variant: 'A' | 'B'
-  userId: string
-  type: string
-  metadata?: Record<string, any>
+  user_id?: string
 }
 
 export interface ExperimentStats {
-  experimentId: string
-  variants: {
-    A: VariantStats
-    B: VariantStats
-  }
-  totalImpressions: number
-  totalConversions: number
-  confidenceLevel?: number // Statistical significance
-}
-
-interface VariantStats {
+  experiment_id: string
+  variant: 'A' | 'B'
   impressions: number
   conversions: number
-  conversionRate: number
-  improvement?: number // % improvement over other variant
+  conversion_rate: number
 }

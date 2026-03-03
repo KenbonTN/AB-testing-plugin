@@ -1,0 +1,1400 @@
+import React, { RefObject } from 'react';
+
+interface WithInvoke {
+    invoke<Name extends keyof PluginMessageAPI, Args extends Parameters<PluginMessageAPI[Name]>, Return extends ReturnType<PluginMessageAPI[Name]>>(methodName: Name, ...args: Args): Return;
+}
+
+/**
+ * This alias takes a type as its argument and returns a new type that has the same properties as
+ * the original, but the properties are not intersected. This makes the new type easier to read and
+ * understand.
+ *
+ * Example:
+ * ```ts
+ * // Original type:
+ * { a: string; } & { b: number; } & { c: boolean; }
+ *
+ * // New type:
+ * { a: string; b: number; c: boolean; }
+ * ```
+ */
+type Prettify<T> = {
+    [K in keyof T]: T[K] extends object ? Prettify<T[K]> : T[K];
+} & {};
+
+type FontSelector = string;
+interface FontData {
+    __class: "Font";
+    selector: FontSelector;
+    family: string;
+    weight: FontWeight | null;
+    style: FontStyle | null;
+}
+type FontAttributes = Prettify<Partial<{
+    weight: FontWeight;
+    style: FontStyle;
+}>>;
+declare const fontStyles: readonly ["normal", "italic"];
+type FontStyle = (typeof fontStyles)[number];
+declare const fontWeights: readonly [100, 200, 300, 400, 500, 600, 700, 800, 900];
+/**
+ * Boldness as an absolute value.
+ *
+ *  These values are usually associated with the following names:
+ * - `100` - Thin
+ * - `200` - Extra Light (Ultra Light)
+ * - `300` - Light
+ * - `400` - Normal
+ * - `500` - Medium
+ * - `600` - Semi Bold (Demi Bold)
+ * - `700` - Bold
+ * - `800` - Extra Bold
+ * - `900` - Black (Heavy)
+ * */
+type FontWeight = (typeof fontWeights)[number];
+declare class Font {
+    /** An identifier used internally for differentiating fonts. */
+    readonly selector: string;
+    /** Name of the family the font belongs to. */
+    readonly family: string;
+    /**
+     * Specifies how thin or bold the font appears.
+     *
+     * Note: This will be `null` for custom fonts since their weight isn't
+     * calculated.
+     * */
+    readonly weight: FontWeight | null;
+    /**
+     * Specifies if the font is normal or _italic_.
+     *
+     * Note: This will be `null` for custom fonts since their weight isn't
+     * calculated.
+     * */
+    readonly style: FontStyle | null;
+    constructor(data: FontData);
+}
+
+interface ColorStop {
+    /** CSS color */
+    color: string;
+    /** 0-1 */
+    position: number;
+}
+interface LinearGradientOptions {
+    /** 0-360 */
+    angle: number;
+    /** Color stops with position */
+    stops: readonly ColorStop[];
+}
+declare const linearGradientClassDiscriminator: "LinearGradient";
+declare const radialGradientClassDiscriminator: "RadialGradient";
+declare const conicGradientClassDiscriminator: "ConicGradient";
+type Gradient = LinearGradient | RadialGradient | ConicGradient;
+type GradientData = LinearGradientData | RadialGradientData | ConicGradientData;
+interface LinearGradientData extends LinearGradientOptions {
+    __class: typeof linearGradientClassDiscriminator;
+}
+declare class LinearGradient implements LinearGradientOptions {
+    readonly angle: number;
+    readonly stops: readonly ColorStop[];
+    constructor(options: LinearGradientOptions);
+    cloneWithAttributes(attributes: Partial<LinearGradientOptions>): LinearGradient;
+    toCSS(): string;
+}
+interface RadialGradientOptions {
+    /** Relative width */
+    width: PercentageLength;
+    /** Relative height */
+    height: PercentageLength;
+    /** Relative horizontal position */
+    x: PercentageLength;
+    /** Relative vertical position */
+    y: PercentageLength;
+    /** Color stops with position */
+    stops: readonly ColorStop[];
+}
+interface RadialGradientData extends RadialGradientOptions {
+    __class: typeof radialGradientClassDiscriminator;
+}
+declare class RadialGradient implements RadialGradientOptions {
+    readonly width: PercentageLength;
+    readonly height: PercentageLength;
+    readonly x: PercentageLength;
+    readonly y: PercentageLength;
+    readonly stops: readonly ColorStop[];
+    constructor(options: RadialGradientOptions);
+    cloneWithAttributes(attributes: Partial<RadialGradientOptions>): RadialGradient;
+    toCSS(): string;
+}
+interface ConicGradientOptions {
+    /** 0-360 */
+    angle: number;
+    /** Relative horizontal position */
+    x: PercentageLength;
+    /** Relative vertical position */
+    y: PercentageLength;
+    /** Color stops with position */
+    stops: readonly ColorStop[];
+}
+interface ConicGradientData extends ConicGradientOptions {
+    __class: typeof conicGradientClassDiscriminator;
+}
+declare class ConicGradient implements ConicGradientOptions {
+    readonly angle: number;
+    readonly x: PercentageLength;
+    readonly y: PercentageLength;
+    readonly stops: readonly ColorStop[];
+    constructor(options: ConicGradientOptions);
+    cloneWithAttributes(attributes: Partial<ConicGradientOptions>): ConicGradient;
+    toCSS(): string;
+}
+
+interface ZoomIntoViewOptions {
+    /**
+     * Set a percentage limit for the maximum zoom level.
+     *
+     * For example, use a value of `1.0` to ensure the zoom does not exceed 100%.
+     */
+    maxZoom?: number;
+}
+
+type CSSPixelValue = `${number}px`;
+type CSSRelativeValue = `${number}em`;
+type CSSPercentageValue = `${number}%`;
+
+type TextNodeTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p";
+type TextTransform = "none" | "inherit" | "capitalize" | "uppercase" | "lowercase";
+type TextAlignment = "left" | "center" | "right" | "justify";
+type TextDecoration = "none" | "underline" | "line-through";
+interface AddTextOptions {
+    tag: TextNodeTag;
+}
+
+interface ColorStyleData {
+    id: NodeId;
+    name: string;
+    light: string;
+    dark: string | null;
+}
+type ColorStyleAttributes = Prettify<Partial<Omit<ColorStyleData, "id">>>;
+declare class ColorStyle {
+    #private;
+    readonly id: NodeId;
+    readonly name: string;
+    /** Color used for the default or light theme in RGBA format, e.g `rgba(242, 59, 57, 1)` */
+    readonly light: string;
+    /** Optional color used for the dark theme in RGBA format, e.g `rgba(242, 59, 57, 1)` */
+    readonly dark: string | null;
+    constructor(data: ColorStyleData, api: FramerAPI);
+    /** Set the attributes of a color style. */
+    setAttributes(update: ColorStyleAttributes): Promise<ColorStyle | null>;
+    /** Get plugin data for this color style by key. */
+    getPluginData(key: string): Promise<string | null>;
+    /** Set plugin data on this color style by key. */
+    setPluginData(key: string, value: string | null): Promise<void>;
+    /** Get all plugin data keys for this color style. */
+    getPluginDataKeys(): Promise<string[]>;
+    /** Deletes the color style from the project. */
+    remove(): Promise<void>;
+}
+type TextStyleTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p";
+interface TextStyleBreakpointData {
+    /**
+     * How big does the window width need to be for this breakpoint's styles to
+     * take affect.
+     *
+     * This must be unique for each breakpoint.
+     * */
+    minWidth: number;
+    /** Size of the text at this breakpoint. */
+    fontSize: CSSPixelValue;
+    /** Size of the space between each letter at this breakpoint. */
+    letterSpacing: CSSPixelValue | CSSRelativeValue;
+    /** Size of the space between each line of text at this breakpoint. */
+    lineHeight: CSSPixelValue | CSSRelativeValue | CSSPercentageValue;
+    /** Size of the space between each paragraph at this breakpoint. */
+    paragraphSpacing: number;
+}
+type TextStyleBreakpointAttributes = Prettify<Partial<TextStyleBreakpointData> & Pick<TextStyleBreakpointData, "minWidth">>;
+type TextStyleBreakpoint = Prettify<TextStyleBreakpointData>;
+declare const textStyleDiscriminator: "TextStyle";
+interface TextStyleData extends TextStyleBreakpointData {
+    __class: typeof textStyleDiscriminator;
+    id: NodeId;
+    name: string;
+    tag: TextStyleTag;
+    color: string;
+    font: FontData;
+    boldFont: FontData | null;
+    italicFont: FontData | null;
+    boldItalicFont: FontData | null;
+    transform: TextTransform;
+    alignment: TextAlignment;
+    decoration: TextDecoration;
+    balance: boolean;
+    breakpoints: TextStyleBreakpointData[];
+}
+type TextStyleAttributes = Prettify<Partial<Omit<TextStyleData, "id" | "font" | "boldFont" | "italicFont" | "boldItalicFont" | "breakpoints"> & {
+    font: Font;
+    boldFont: Font | null;
+    italicFont: Font | null;
+    boldItalicFont: Font | null;
+    breakpoints: TextStyleBreakpointAttributes[];
+}>>;
+declare class TextStyle {
+    #private;
+    readonly id: NodeId;
+    readonly name: string;
+    /** HTML tag that the style will use. */
+    readonly tag: TextStyleTag;
+    /**
+     * Base font of the text.
+     *
+     * Setting this will automatically update `boldFont`, `italicFont` or
+     * `boldItalicFont` with the appropriate variants if they are not already
+     * specified.
+     * */
+    readonly font: Font;
+    /**
+     * Font to use for bold text.
+     *
+     * Note: This must have the same family name as the base `font` attribute.
+     * */
+    readonly boldFont: Font | null;
+    /**
+     * Font to use for italic text.
+     *
+     * Note: This must be the same family name as the base `font` attribute.
+     * */
+    readonly italicFont: Font | null;
+    /**
+     * Font to use for bold italic text.
+     *
+     * Note: This must have the same family name as the base `font` attribute.
+     * */
+    readonly boldItalicFont: Font | null;
+    /** Color of the text in RGBA format for all breakpoints, e.g `rgba(242, 59, 57, 1)` */
+    readonly color: string;
+    /** Specifies how to capitalize the text for all breakpoints. */
+    readonly transform: TextTransform;
+    /** Specifies the horizontal direction of the text for all breakpoints. */
+    readonly alignment: TextAlignment;
+    /** Appearance of any decorative lines on the text for all breakpoints. */
+    readonly decoration: TextDecoration;
+    /** When enabled, use a text wrap method that tries to balance the number of characters on each line for legibility. */
+    readonly balance: boolean;
+    /** A list of style overrides that take affect at specific window widths. Breakpoints are automatically sorted by `minWidth` from largest to smallest. */
+    readonly breakpoints: TextStyleBreakpoint[];
+    /**
+     * How big does the window width need to be for primary breakpoint styles to
+     * take affect.
+     *
+     * Note: This is ignored if the text style has no breakpoints.
+     * */
+    readonly minWidth: number;
+    /**
+     * Size of the text of the primary breakpoint.
+     *
+     * Note: This is used by default when there are no breakpoints.
+     * */
+    readonly fontSize: CSSPixelValue;
+    /**
+     * Size of the space between each letter for the primary breakpoint.
+     *
+     * Note: This is used by default when there are no breakpoints.
+     * */
+    readonly letterSpacing: CSSPixelValue | CSSRelativeValue;
+    /**
+     * Size of the space between each line of text for the primary breakpoint.
+     *
+     * Note: This is used by default when there are no breakpoints.
+     * */
+    readonly lineHeight: CSSPixelValue | CSSRelativeValue | CSSPercentageValue;
+    /**
+     * Size of the space between each paragraph for the primary breakpoint.
+     *
+     * Note: This is used by default when there are no breakpoints.
+     * */
+    readonly paragraphSpacing: number;
+    constructor(data: TextStyleData, api: FramerAPI);
+    /**
+     * Set the attributes of the text style.
+     *
+     * @throws If the number of breakpoints is bigger than the limit of 4.
+     * @throws If any of the font families used for `boldFont`, `italicFont and
+     * `boldItalicFont` do not match the family of `font`.
+     * */
+    setAttributes(update: TextStyleAttributes): Promise<TextStyle | null>;
+    /** Get plugin data for this text style by key. */
+    getPluginData(key: string): Promise<string | null>;
+    /** Set plugin data on this text style by key. */
+    setPluginData(key: string, value: string | null): Promise<void>;
+    /** Get all plugin data keys for this text style. */
+    getPluginDataKeys(): Promise<string[]>;
+    /** Deletes the text style from the project. */
+    remove(): Promise<void>;
+}
+declare function isTextStyle(value: unknown): value is TextStyle;
+
+interface Rect$1 {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+declare const createableNodes: readonly ["FrameNode"];
+declare const otherNodes: readonly ["SVGNode", "WebPageNode", "ComponentNode", "UnknownNode", "ComponentInstanceNode", "TextNode"];
+type CreateNodeType$1 = (typeof createableNodes)[number];
+type OtherNodeType = (typeof otherNodes)[number];
+type PluginNodeClass = OtherNodeType | CreateNodeType$1;
+type KnownNodeClass = Exclude<PluginNodeClass, "UnknownNode">;
+type NodeWithAttribute<T extends NodeAttributeKey> = Extract<AnyNode, Record<T, unknown>>;
+interface CommonNodeData extends WithIdTrait, WithReplicaInfoTrait {
+    __class: PluginNodeClass;
+}
+declare abstract class NodeMethods implements WithIdTrait {
+    #private;
+    readonly id: NodeId;
+    constructor(data: Partial<SomeNodeData>, api: FramerPluginAPI);
+    get isReplica(): boolean;
+    remove(): Promise<void>;
+    select(): Promise<void>;
+    clone(): Promise<AnyNode | null>;
+    setAttributes(update: Partial<AnyEditableAttributes>): Promise<AnyNode | null>;
+    getRect(): Promise<Rect$1 | null>;
+    /** Pans and zooms the viewport to center the node. */
+    zoomIntoView(options?: ZoomIntoViewOptions): Promise<void>;
+    getParent(): Promise<AnyNode | null>;
+    getChildren(): Promise<CanvasNode[]>;
+    getNodesWithType(type: "FrameNode"): Promise<FrameNode[]>;
+    getNodesWithType(type: "TextNode"): Promise<TextNode[]>;
+    getNodesWithType(type: "SVGNode"): Promise<SVGNode[]>;
+    getNodesWithType(type: "ComponentInstanceNode"): Promise<ComponentInstanceNode[]>;
+    getNodesWithType(type: "WebPageNode"): Promise<WebPageNode[]>;
+    getNodesWithType(type: "ComponentNode"): Promise<ComponentNode[]>;
+    getNodesWithAttribute<T extends NodeAttributeKey, Node = NodeWithAttribute<T>>(attribute: T): Promise<Node[]>;
+    getNodesWithAttributeSet<T extends NodeAttributeKey, Node = NodeWithAttribute<T>>(attribute: T): Promise<Node[]>;
+    walk(this: AnyNode): AsyncGenerator<AnyNode>;
+    /** Set plugin data by key. */
+    getPluginData(key: string): Promise<string | null>;
+    /** Set plugin data by key. */
+    setPluginData(key: string, value: string | null): Promise<void>;
+    /** Get all plugin data keys. */
+    getPluginDataKeys(): Promise<string[]>;
+}
+interface DrawableNode extends WithNameTrait, WithVisibleTrait, WithLockedTrait, WithOpacityTrait {
+}
+interface EditableFrameNodeAttributes extends DrawableNode, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSizeConstraintsTrait, WithAspectRatioTrait, WithBackgroundColorTrait, WithBackgroundImageTrait<TraitVariantNode>, WithBackgroundGradientTrait<TraitVariantNode>, WithRotationTrait, WithLinkTrait, WithBorderRadiusTrait {
+}
+interface FrameNodeData extends CommonNodeData, DrawableNode, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSizeConstraintsTrait, WithAspectRatioTrait, WithBackgroundColorTrait, WithBackgroundImageTrait<TraitVariantData>, WithBackgroundGradientTrait<TraitVariantData>, WithRotationTrait, WithLinkTrait, WithBorderRadiusTrait {
+    __class: "FrameNode";
+}
+declare class FrameNode extends NodeMethods implements EditableFrameNodeAttributes {
+    readonly __class: FrameNodeData["__class"];
+    readonly name: string | null;
+    readonly visible: boolean;
+    readonly locked: boolean;
+    readonly backgroundColor: string | null;
+    readonly backgroundImage: ImageAsset | null;
+    readonly backgroundGradient: LinearGradient | RadialGradient | ConicGradient | null;
+    readonly rotation: number;
+    readonly opacity: number;
+    readonly borderRadius: BorderRadius;
+    readonly position: Position;
+    readonly top: PixelLength | null;
+    readonly right: PixelLength | null;
+    readonly bottom: PixelLength | null;
+    readonly left: PixelLength | null;
+    readonly centerX: PercentageLength | null;
+    readonly centerY: PercentageLength | null;
+    readonly width: WidthLength | null;
+    readonly height: HeightLength | null;
+    readonly maxWidth: WidthConstraint | null;
+    readonly minWidth: WidthConstraint | null;
+    readonly maxHeight: HeightConstraint | null;
+    readonly minHeight: HeightConstraint | null;
+    readonly aspectRatio: number | null;
+    readonly link: string | null;
+    readonly linkOpenInNewTab: boolean | null;
+    constructor(rawData: Partial<FrameNodeData>, api: FramerPluginAPI);
+    clone(): Promise<FrameNode | null>;
+    setAttributes(update: Partial<EditableFrameNodeAttributes>): Promise<FrameNode | null>;
+}
+interface EditableTextNodeAttributes extends DrawableNode, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSizeConstraintsTrait, WithRotationTrait, WithFontTrait<TraitVariantNode>, WithLinkTrait, WithInlineTextStyleTrait<TraitVariantNode> {
+}
+interface TextNodeData extends CommonNodeData, DrawableNode, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSizeConstraintsTrait, WithRotationTrait, WithLinkTrait, WithFontTrait<TraitVariantData>, WithInlineTextStyleTrait<TraitVariantData> {
+    __class: "TextNode";
+}
+declare class TextNode extends NodeMethods implements EditableTextNodeAttributes {
+    #private;
+    readonly __class: TextNodeData["__class"];
+    readonly name: string | null;
+    readonly visible: boolean;
+    readonly locked: boolean;
+    readonly rotation: number;
+    readonly opacity: number;
+    readonly font: Font | null;
+    readonly inlineTextStyle: TextStyle | null;
+    readonly position: Position;
+    readonly top: PixelLength | null;
+    readonly right: PixelLength | null;
+    readonly bottom: PixelLength | null;
+    readonly left: PixelLength | null;
+    readonly centerX: PercentageLength | null;
+    readonly centerY: PercentageLength | null;
+    readonly width: WidthLength | null;
+    readonly height: HeightLength | null;
+    readonly maxWidth: WidthConstraint | null;
+    readonly minWidth: WidthConstraint | null;
+    readonly maxHeight: HeightConstraint | null;
+    readonly minHeight: HeightConstraint | null;
+    readonly link: string | null;
+    readonly linkOpenInNewTab: boolean | null;
+    constructor(rawData: Partial<TextNodeData>, api: FramerPluginAPI);
+    clone(): Promise<TextNode | null>;
+    setAttributes(update: Partial<EditableTextNodeAttributes>): Promise<TextNode | null>;
+    setText(text: string): Promise<void>;
+    getText(): Promise<string | null>;
+}
+interface EditableSVGNodeAttributes extends DrawableNode, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSVGTrait, WithRotationTrait {
+}
+interface SVGNodeData extends CommonNodeData, DrawableNode, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSVGTrait, WithRotationTrait {
+    __class: "SVGNode";
+}
+declare class SVGNode extends NodeMethods implements EditableSVGNodeAttributes {
+    readonly __class: SVGNodeData["__class"];
+    readonly name: string | null;
+    readonly visible: boolean;
+    readonly locked: boolean;
+    readonly svg: string;
+    readonly rotation: number;
+    readonly opacity: number;
+    readonly position: Position;
+    readonly top: PixelLength | null;
+    readonly right: PixelLength | null;
+    readonly bottom: PixelLength | null;
+    readonly left: PixelLength | null;
+    readonly centerX: PercentageLength | null;
+    readonly centerY: PercentageLength | null;
+    readonly width: WidthLength | null;
+    readonly height: HeightLength | null;
+    constructor(rawData: Partial<SVGNodeData>, api: FramerPluginAPI);
+    clone(): Promise<SVGNode | null>;
+    setAttributes(update: Partial<EditableSVGNodeAttributes>): Promise<SVGNode | null>;
+}
+interface EditableComponentInstanceNodeAttributes extends DrawableNode, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSizeConstraintsTrait, WithAspectRatioTrait, WithControlAttributesTrait, WithRotationTrait {
+}
+interface ComponentInstanceNodeData extends CommonNodeData, DrawableNode, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSizeConstraintsTrait, WithAspectRatioTrait, WithControlAttributesTrait, WithComponentInfoTrait, WithRotationTrait {
+    __class: "ComponentInstanceNode";
+}
+declare class ComponentInstanceNode extends NodeMethods implements EditableComponentInstanceNodeAttributes, WithComponentInfoTrait {
+    readonly __class: ComponentInstanceNodeData["__class"];
+    readonly name: string | null;
+    readonly visible: boolean;
+    readonly locked: boolean;
+    readonly componentIdentifier: string;
+    readonly insertURL: string | null;
+    readonly componentName: string | null;
+    readonly controls: ControlAttributes;
+    readonly rotation: number;
+    readonly opacity: number;
+    readonly position: Position;
+    readonly top: PixelLength | null;
+    readonly right: PixelLength | null;
+    readonly bottom: PixelLength | null;
+    readonly left: PixelLength | null;
+    readonly centerX: PercentageLength | null;
+    readonly centerY: PercentageLength | null;
+    readonly width: WidthLength | null;
+    readonly height: HeightLength | null;
+    readonly maxWidth: WidthConstraint | null;
+    readonly minWidth: WidthConstraint | null;
+    readonly maxHeight: HeightConstraint | null;
+    readonly minHeight: HeightConstraint | null;
+    readonly aspectRatio: number | null;
+    constructor(rawData: Partial<ComponentInstanceNodeData>, api: FramerPluginAPI);
+    clone(): Promise<ComponentInstanceNode | null>;
+    setAttributes(update: Partial<EditableComponentInstanceNodeAttributes>): Promise<ComponentInstanceNode | null>;
+}
+interface EditableWebPageNodeAttributes {
+}
+interface WebPageNodeData extends CommonNodeData, WithWebPageInfoTrait {
+    __class: "WebPageNode";
+}
+declare class WebPageNode extends NodeMethods implements EditableWebPageNodeAttributes, WithWebPageInfoTrait {
+    readonly _class: WebPageNodeData["__class"];
+    /**
+     * The relative path to the WebPage
+     */
+    readonly path: string | null;
+    /**
+     * The Collection ID of the CMS Collection if the WebPage is a CMS Detail Page
+     */
+    readonly collectionId: string | null;
+    constructor(rawData: Partial<WebPageNodeData>, api: FramerPluginAPI);
+    clone(): Promise<WebPageNode | null>;
+    setAttributes(update: Partial<EditableWebPageNodeAttributes>): Promise<WebPageNode | null>;
+}
+interface EditableComponentNodeAttributes extends WithNameTrait {
+}
+interface ComponentNodeData extends CommonNodeData, WithNameTrait, WithComponentInfoTrait {
+    __class: "ComponentNode";
+}
+declare class ComponentNode extends NodeMethods implements EditableComponentNodeAttributes, WithComponentInfoTrait {
+    readonly __class: ComponentNodeData["__class"];
+    readonly name: string | null;
+    readonly componentIdentifier: string;
+    readonly insertURL: string | null;
+    readonly componentName: string | null;
+    constructor(rawData: Partial<ComponentNodeData>, api: FramerPluginAPI);
+    clone(): Promise<ComponentNode | null>;
+    setAttributes(update: Partial<EditableComponentNodeAttributes>): Promise<ComponentNode | null>;
+}
+interface UnknownNodeData extends CommonNodeData {
+    __class: "UnknownNode";
+}
+declare class UnknownNode extends NodeMethods {
+    readonly __class: UnknownNodeData["__class"];
+    constructor(rawData: Partial<UnknownNodeData>, api: FramerPluginAPI);
+    clone(): Promise<null>;
+    setAttributes(_update: unknown): Promise<AnyNode | null>;
+}
+type CanvasRootNode = WebPageNode | ComponentNode | UnknownNode;
+type CanvasNode = FrameNode | TextNode | ComponentInstanceNode | SVGNode | UnknownNode;
+type SomeNodeData = FrameNodeData | TextNodeData | ComponentInstanceNodeData | SVGNodeData | WebPageNodeData | ComponentNodeData | UnknownNodeData;
+interface AnyNodeData extends Partial<AllTraits<TraitVariantData>>, WithReplicaInfoTrait {
+    __class: PluginNodeClass;
+}
+interface AnyEditableAttributes extends EditableFrameNodeAttributes, EditableTextNodeAttributes, EditableSVGNodeAttributes, EditableComponentInstanceNodeAttributes, EditableComponentNodeAttributes, EditableWebPageNodeAttributes {
+}
+type AnyNode = CanvasNode | CanvasRootNode;
+declare function isFrameNode(node: unknown): node is FrameNode;
+declare function isTextNode(node: unknown): node is TextNode;
+declare function isSVGNode(node: unknown): node is SVGNode;
+declare function isComponentInstanceNode(node: unknown): node is ComponentInstanceNode;
+declare function isWebPageNode(node: unknown): node is WebPageNode;
+declare function isComponentNode(node: unknown): node is ComponentNode;
+
+type NodeId = string;
+interface WithIdTrait {
+    readonly id: NodeId;
+}
+interface WithReplicaInfoTrait {
+    readonly originalId: string | null;
+}
+interface WithNameTrait {
+    readonly name: string | null;
+}
+interface WithVisibleTrait {
+    readonly visible: boolean;
+}
+interface WithLockedTrait {
+    readonly locked: boolean;
+}
+interface WithBackgroundColorTrait {
+    /** Color of the frame in RGBA format, e.g `rgba(242, 59, 57, 1)`. */
+    readonly backgroundColor: string | null;
+}
+interface WithBackgroundImageTrait<T extends TraitVariant> {
+    readonly backgroundImage: (T extends TraitVariantData ? ImageAssetData : ImageAsset) | null;
+}
+interface WithBackgroundGradientTrait<T extends TraitVariant> {
+    readonly backgroundGradient: (T extends TraitVariantData ? GradientData : Gradient) | null;
+}
+interface WithRotationTrait {
+    readonly rotation: number;
+}
+interface WithOpacityTrait {
+    readonly opacity: number;
+}
+type BorderRadius = `${number}%` | `${number}px` | `${number}px ${number}px ${number}px ${number}px` | null;
+interface WithBorderRadiusTrait {
+    readonly borderRadius: BorderRadius;
+}
+interface WithComponentInfoTrait {
+    readonly componentIdentifier: string;
+    readonly insertURL: string | null;
+    readonly componentName: string | null;
+}
+interface WithWebPageInfoTrait {
+    readonly path: string | null;
+    readonly collectionId: string | null;
+}
+interface WithLinkTrait {
+    readonly link: string | null;
+    readonly linkOpenInNewTab: boolean | null;
+}
+type ControlAttributes = Record<string, unknown>;
+interface WithControlAttributesTrait {
+    readonly controls: ControlAttributes;
+}
+interface WithSVGTrait {
+    readonly svg: string;
+}
+type Position = "relative" | "absolute" | "fixed" | "sticky";
+interface WithPositionTrait {
+    position: Position;
+}
+type PixelLength = `${number}px`;
+type PercentageLength = `${number}%`;
+type FractionalLength = `${number}fr`;
+type ViewportWidthLength = `${number}vw`;
+type ViewportHeightLength = `${number}vh`;
+type FitContent = "fit-content";
+interface WithPinsTrait {
+    top: PixelLength | null;
+    right: PixelLength | null;
+    bottom: PixelLength | null;
+    left: PixelLength | null;
+    centerX: PercentageLength | null;
+    centerY: PercentageLength | null;
+}
+type Length = PixelLength | PercentageLength | FractionalLength;
+type WidthLength = Length | FitContent;
+type HeightLength = Length | FitContent | ViewportHeightLength;
+interface WithSizeTrait {
+    width: WidthLength | null;
+    height: HeightLength | null;
+}
+interface WithAspectRatioTrait {
+    aspectRatio: number | null;
+}
+type WidthConstraint = PixelLength | PercentageLength;
+type HeightConstraint = PixelLength | PercentageLength | ViewportHeightLength;
+interface WithSizeConstraintsTrait {
+    maxWidth: WidthConstraint | null;
+    minWidth: WidthConstraint | null;
+    maxHeight: HeightConstraint | null;
+    minHeight: HeightConstraint | null;
+}
+interface WithInlineTextStyleTrait<T extends TraitVariant> {
+    readonly inlineTextStyle: (T extends TraitVariantData ? TextStyleData : TextStyle) | null;
+}
+interface WithFontTrait<T extends TraitVariant> {
+    readonly font: (T extends TraitVariantData ? FontData : Font) | null;
+}
+type TraitVariantData = "data";
+type TraitVariantNode = "node";
+type TraitVariant = TraitVariantData | TraitVariantNode;
+interface AllTraits<T extends TraitVariant = TraitVariant> extends WithIdTrait, WithNameTrait, WithVisibleTrait, WithLockedTrait, WithBackgroundColorTrait, WithBackgroundImageTrait<T>, WithBackgroundGradientTrait<T>, WithRotationTrait, WithOpacityTrait, WithBorderRadiusTrait, WithComponentInfoTrait, WithControlAttributesTrait, WithSVGTrait, WithPositionTrait, WithPinsTrait, WithSizeTrait, WithSizeConstraintsTrait, WithAspectRatioTrait, WithFontTrait<T>, WithInlineTextStyleTrait<T>, WithWebPageInfoTrait, WithLinkTrait {
+}
+type NodeAttributeKey = Prettify<Exclude<keyof AllTraits<TraitVariantNode>, "id" | "children">>;
+type PartialNodeData = AnyNode | Partial<AnyNodeData>;
+declare function supportsPosition<T extends PartialNodeData>(node: T): node is T & WithPositionTrait;
+declare function supportsPins<T extends PartialNodeData>(node: T): node is T & WithPinsTrait;
+declare function supportsSize<T extends PartialNodeData>(node: T): node is T & WithSizeTrait;
+declare function supportsSizeConstraints<T extends PartialNodeData>(node: T): node is T & WithSizeConstraintsTrait;
+declare function supportsAspectRatio<T extends PartialNodeData>(node: T): node is T & WithAspectRatioTrait;
+declare function supportsName<T extends PartialNodeData>(node: T): node is T & WithNameTrait;
+declare function supportsVisible<T extends PartialNodeData>(node: T): node is T & WithVisibleTrait;
+declare function supportsLocked<T extends PartialNodeData>(node: T): node is T & WithLockedTrait;
+declare function supportsBackgroundColor<T extends PartialNodeData>(node: T): node is T & WithBackgroundColorTrait;
+declare function supportsBackgroundImage<T extends AnyNode>(node: T): node is T & WithBackgroundImageTrait<TraitVariantNode>;
+declare function supportsBackgroundImageData<T extends Partial<AnyNodeData>>(node: T): node is T & WithBackgroundImageTrait<TraitVariantData>;
+declare function supportsBackgroundGradient<T extends PartialNodeData>(node: T): node is T & WithBackgroundGradientTrait<TraitVariantNode>;
+declare function supportsBackgroundGradientData<T extends PartialNodeData>(node: T): node is T & WithBackgroundGradientTrait<TraitVariantData>;
+declare function supportsRotation<T extends PartialNodeData>(node: T): node is T & WithRotationTrait;
+declare function supportsOpacity<T extends PartialNodeData>(node: T): node is T & WithOpacityTrait;
+declare function supportsBorderRadius<T extends PartialNodeData>(node: T): node is T & WithBorderRadiusTrait;
+declare function supportsSVG<T extends PartialNodeData>(node: T): node is T & WithSVGTrait;
+declare function supportsComponentInfo<T extends PartialNodeData>(node: T): node is T & WithComponentInfoTrait;
+declare function supportsFont<T extends PartialNodeData>(node: T): node is T & WithFontTrait<TraitVariantNode>;
+declare function supportsFontData<T extends PartialNodeData>(node: T): node is T & WithFontTrait<TraitVariantData>;
+declare function supportsInlineTextStyle<T extends PartialNodeData>(node: T): node is T & WithInlineTextStyleTrait<TraitVariantNode>;
+declare function supportsInlineTextStyleData<T extends PartialNodeData>(node: T): node is T & WithInlineTextStyleTrait<TraitVariantData>;
+declare function supportsLink<T extends PartialNodeData>(node: T): node is T & WithLinkTrait;
+
+interface CollectionData {
+    id: string;
+    name: string;
+}
+type FieldData = Record<string, unknown>;
+interface EditableCollectionItemAttributes {
+    /** Required unique slug. */
+    slug: string;
+    /** Data for the fields. */
+    fieldData: FieldData;
+}
+interface CollectionItemData extends EditableCollectionItemAttributes {
+    /** Required unique id. Using an id instead of the slug prevents data loss. */
+    id: string;
+}
+interface FieldBase {
+    /** Required unique id. Use a unique identifier to prevent data loss when the field is renamed. */
+    id: string;
+    /** The name of the field as displayed in the UI. */
+    name: string;
+}
+interface BooleanField extends FieldBase {
+    type: "boolean";
+}
+interface ColorField extends FieldBase {
+    type: "color";
+}
+interface NumberField extends FieldBase {
+    type: "number";
+}
+interface StringField extends FieldBase {
+    type: "string";
+}
+interface FormattedTextField extends FieldBase {
+    type: "formattedText";
+}
+interface ImageField extends FieldBase {
+    type: "image";
+}
+interface LinkField extends FieldBase {
+    type: "link";
+}
+interface DateField extends FieldBase {
+    type: "date";
+}
+interface FileField extends FieldBase {
+    type: "file";
+    allowedFileTypes: string[];
+}
+interface EnumCase {
+    id: string;
+    name: string;
+}
+interface EnumField extends FieldBase {
+    type: "enum";
+    cases: EnumCase[];
+}
+interface UnsupportedField extends FieldBase {
+    type: "unsupported";
+}
+/**
+ * A collection field that Framer knows about and the plugin API fully supports.
+ */
+type SupportedCollectionField = BooleanField | ColorField | NumberField | StringField | FormattedTextField | ImageField | LinkField | DateField | FileField | EnumField;
+/**
+ * Any kind of collection field definition. The field may be unsupported by the
+ * plugin API.
+ */
+type CollectionField = SupportedCollectionField | UnsupportedField;
+/**
+ * Any kind of collection field definition that was created by a plugin and is
+ * supported by the API.
+ */
+type ManagedCollectionField = SupportedCollectionField & {
+    /** Is the user able to edit the field within the UI. */
+    userEditable: boolean;
+};
+type EditableManagedCollectionField = SupportedCollectionField & Partial<Pick<ManagedCollectionField, "userEditable">>;
+declare class ManagedCollection {
+    #private;
+    readonly id: NodeId;
+    readonly name: string;
+    constructor(data: Partial<CollectionData>, api: FramerPluginAPI);
+    /** Get item keys in their set order. */
+    getItemIds(): Promise<string[]>;
+    /** Arrange items in a specific order. */
+    setItemOrder(ids: string[]): Promise<void>;
+    /** Get all fields. */
+    getFields(): Promise<ManagedCollectionField[]>;
+    /** Create, update or remove all fields in one go. */
+    setFields(fields: EditableManagedCollectionField[]): Promise<void>;
+    /** Add new items or update existing ones if their IDs match. */
+    addItems(items: CollectionItemData[]): Promise<void>;
+    /** Remove items by their id. */
+    removeItems(ids: string[]): Promise<void>;
+    /** Set plugin data by key. */
+    setPluginData(key: string, value: string | null): Promise<void>;
+    /** Get plugin data by key. */
+    getPluginData(key: string): Promise<string | null>;
+    /** Get all plugin data keys. */
+    getPluginDataKeys(): Promise<string[]>;
+}
+declare class Collection {
+    #private;
+    readonly id: NodeId;
+    readonly name: string;
+    constructor(data: Partial<CollectionData>, api: FramerPluginAPI);
+    /** Get all fields. */
+    getFields(): Promise<CollectionField[]>;
+    getItems(): Promise<CollectionItem[]>;
+    /** Set plugin data by key. */
+    setPluginData(key: string, value: string | null): Promise<void>;
+    /** Get plugin data by key. */
+    getPluginData(key: string): Promise<string | null>;
+    /** Get all plugin data keys. */
+    getPluginDataKeys(): Promise<string[]>;
+}
+declare class CollectionItem {
+    #private;
+    readonly id: string;
+    readonly slug: string;
+    readonly fieldData: Readonly<FieldData>;
+    constructor(data: CollectionItemData, api: WithInvoke & FramerAPI);
+    /** Set plugin data by key. */
+    setPluginData(key: string, value: string | null): Promise<void>;
+    /** Get plugin data by key. */
+    getPluginData(key: string): Promise<string | null>;
+    /** Get all plugin data keys. */
+    getPluginDataKeys(): Promise<string[]>;
+}
+
+type CustomCodeLocation = "headStart" | "headEnd" | "bodyStart" | "bodyEnd";
+interface SetCustomCodeOptions {
+    html: string | null;
+    location: CustomCodeLocation;
+}
+type CustomCode = Record<CustomCodeLocation, {
+    disabled: boolean;
+    html: string | null;
+}>;
+
+interface WithOptionalName$1 {
+    name?: string;
+}
+interface WithOptionalPreviewImage {
+    previewImage?: string;
+}
+interface SvgDragData extends WithOptionalName$1, WithOptionalPreviewImage {
+    type: "svg";
+    svg: string;
+    /** Inverts SVG drag preview in dark mode. Defaults to true. */
+    invertInDarkMode?: boolean;
+}
+interface ImageDragData extends WithOptionalName$1, WithOptionalPreviewImage {
+    type: "image";
+    image: string;
+    altText?: string;
+}
+interface ComponentInstanceDragData extends WithOptionalName$1, WithOptionalPreviewImage {
+    type: "componentInstance";
+    url: string;
+    attributes?: Partial<EditableComponentInstanceNodeAttributes>;
+}
+interface DetachedComponentLayersDragData extends WithOptionalName$1, WithOptionalPreviewImage {
+    type: "detachedComponentLayers";
+    url: string;
+    layout?: boolean;
+    attributes?: Partial<EditableComponentInstanceNodeAttributes>;
+}
+type DragData = SvgDragData | ImageDragData | ComponentInstanceDragData | DetachedComponentLayersDragData;
+interface Point {
+    x: number;
+    y: number;
+}
+interface Size$1 {
+    width: number;
+    height: number;
+}
+interface DragSessionId {
+    dragSessionId: string;
+}
+type Rect = Point & Size$1;
+interface Mouse {
+    mouse: Point;
+}
+interface ElementRect {
+    elementRect: Rect;
+    svgRect?: Rect;
+}
+type DragStartInfo = DragSessionId & ElementRect & Mouse;
+type DragInfo = DragSessionId & Mouse;
+type DragEndInfo = DragSessionId & {
+    cancelled: boolean;
+};
+
+type OptimizationStatus = "optimizing" | "optimized" | "error";
+interface Publish {
+    deploymentTime: number;
+    optimizationStatus: OptimizationStatus;
+    url: string;
+    currentPageUrl: string;
+}
+interface PublishInfo {
+    production: Publish | null;
+    staging: Publish | null;
+}
+
+type Mode = "canvas" | "image" | "editImage" | "configureManagedCollection" | "syncManagedCollection" | "collection";
+
+type Unsubscribe = VoidFunction;
+type Cleanup = VoidFunction;
+
+declare class FramerPluginAPI implements FramerAPI {
+    #private;
+    private subscriptions;
+    constructor({ isTestEnv }?: {
+        isTestEnv?: boolean;
+    });
+    get mode(): Mode;
+    private invoke;
+    private invokeTransferable;
+    private subscribe;
+    private queueMessage;
+    private onMessage;
+    private applyPluginTheme;
+    showUI(options?: UIOptions): Promise<void>;
+    hideUI(): Promise<void>;
+    closePlugin(message?: string, options?: ClosePluginOptions): Promise<void>;
+    getCurrentUser(): Promise<User>;
+    getProjectInfo(): Promise<ProjectInfo>;
+    getSelection(): Promise<CanvasNode[]>;
+    setSelection(nodeIds: string | Iterable<string>): Promise<void>;
+    subscribeToSelection(callback: (result: CanvasNode[]) => void): VoidFunction;
+    getCanvasRoot(): Promise<CanvasRootNode>;
+    subscribeToCanvasRoot(callback: (data: CanvasRootNode) => void): VoidFunction;
+    getPublishInfo(): Promise<PublishInfo>;
+    subscribeToPublishInfo(callback: (data: PublishInfo) => void): VoidFunction;
+    createFrameNode(attributes: Partial<EditableFrameNodeAttributes>, parentId?: string): Promise<FrameNode | null>;
+    removeNode(nodeId: string): Promise<void>;
+    cloneNode(nodeId: string): Promise<AnyNode | null>;
+    getNode(nodeId: string): Promise<AnyNode | null>;
+    getParent(nodeId: string): Promise<AnyNode | null>;
+    getChildren(nodeId: string): Promise<CanvasNode[]>;
+    getRect(nodeId: string): Promise<Rect$1 | null>;
+    zoomIntoView(nodeIds: string | Iterable<string>, options?: ZoomIntoViewOptions): Promise<void>;
+    setAttributes(nodeId: string, attributes: Partial<AnyEditableAttributes>): Promise<AnyNode | null>;
+    setParent(nodeId: string, parentId: string, index?: number | undefined): Promise<void>;
+    getNodesWithType(type: "FrameNode"): Promise<FrameNode[]>;
+    getNodesWithType(type: "TextNode"): Promise<TextNode[]>;
+    getNodesWithType(type: "SVGNode"): Promise<SVGNode[]>;
+    getNodesWithType(type: "ComponentInstanceNode"): Promise<ComponentInstanceNode[]>;
+    getNodesWithType(type: "WebPageNode"): Promise<WebPageNode[]>;
+    getNodesWithType(type: "ComponentNode"): Promise<ComponentNode[]>;
+    getNodesWithAttribute<T extends NodeAttributeKey, Node = NodeWithAttribute<T>>(attribute: T): Promise<Node[]>;
+    getNodesWithAttributeSet<T extends NodeAttributeKey, Node = NodeWithAttribute<T>>(attribute: T): Promise<Node[]>;
+    getImage(): Promise<ImageAsset | null>;
+    subscribeToImage(callback: (image: ImageAsset | null) => void): Unsubscribe;
+    addImage(input: NamedImageAssetInput | File): Promise<void>;
+    setImage(input: NamedImageAssetInput | File): Promise<void>;
+    uploadImage(input: NamedImageAssetInput | File): Promise<ImageAsset>;
+    addImages(input: readonly NamedImageAssetInput[]): Promise<void>;
+    uploadImages(input: readonly NamedImageAssetInput[]): Promise<ImageAsset[]>;
+    uploadFile(file: NamedFileAssetInput | File): Promise<FileAsset>;
+    uploadFiles(files: readonly NamedFileAssetInput[]): Promise<FileAsset[]>;
+    addSVG(svg: SVGData): Promise<void>;
+    addComponentInstance({ url, attributes }: AddComponentInstanceOptions): Promise<ComponentInstanceNode>;
+    addDetachedComponentLayers({ url, layout, attributes, }: AddDetachedComponentLayersOptions): Promise<FrameNode>;
+    preloadDetachedComponentLayers(url: string): Promise<void>;
+    preloadImageUrlForInsertion(url: string): Promise<void>;
+    preloadDragPreviewImage(url: string): Promise<void>;
+    getText(): Promise<string | null>;
+    setText(text: string): Promise<void>;
+    addText(text: string, options?: AddTextOptions): Promise<void>;
+    setCustomCode(options: SetCustomCodeOptions): Promise<void>;
+    getCustomCode(): Promise<CustomCode>;
+    subscribeToCustomCode(callback: (customHTML: CustomCode) => void): VoidFunction;
+    subscribeToText(callback: (text: string | null) => void): Unsubscribe;
+    makeDraggable(element: HTMLElement, getDragData: () => DragData): Cleanup;
+    getManagedCollection(): Promise<ManagedCollection>;
+    getCollection(): Promise<Collection>;
+    getCollections(): Promise<Collection[]>;
+    notify(message: string, options?: NotifyOptions): Notification;
+    getPluginData(key: string): Promise<string | null>;
+    setPluginData(key: string, value: string | null): Promise<void>;
+    getPluginDataKeys(): Promise<string[]>;
+    getColorStyles(): Promise<ColorStyle[]>;
+    getColorStyle(id: string): Promise<ColorStyle | null>;
+    createColorStyle(attributes: ColorStyleAttributes): Promise<ColorStyle>;
+    subscribeToColorStyles(callback: (styles: ColorStyle[]) => void): VoidFunction;
+    getTextStyles(): Promise<TextStyle[]>;
+    getTextStyle(id: string): Promise<TextStyle | null>;
+    createTextStyle(attributes: TextStyleAttributes): Promise<TextStyle>;
+    subscribeToTextStyles(callback: (styles: TextStyle[]) => void): VoidFunction;
+    getFont(family: string, attributes?: FontAttributes): Promise<Font | null>;
+    getFonts(): Promise<Font[]>;
+}
+interface UIOptions {
+    /** The preferred UI width. */
+    width?: number;
+    /** The preferred UI height. */
+    height?: number;
+    /** The initial window position, defaults to top left. */
+    position?: "center" | "top left" | "bottom left" | "top right" | "bottom right";
+    /** Whether the UI is resizable. */
+    resizable?: true | false | "width" | "height";
+    /** Minimum UI width. */
+    minWidth?: number;
+    /** Minimum UI height. */
+    minHeight?: number;
+}
+type NotificationVariant = "info" | "success" | "error" | "warning";
+interface ClosePluginOptions {
+    variant?: NotificationVariant;
+}
+interface NotifyOptionsBase {
+    /** The Notification variant for styling of the notification. Defaults to "info" */
+    variant?: NotificationVariant;
+    durationMs?: number;
+}
+interface NotifyOptions extends NotifyOptionsBase {
+    /** A button to be displayed on the notification */
+    button?: {
+        /** The text of the button */
+        text: string;
+        /** Click handler when the button is pressed */
+        onClick: () => void;
+    };
+    /** A function that is called when the notification disappears */
+    onDisappear?: VoidFunction;
+}
+interface NotifyOptionsData extends NotifyOptionsBase {
+    buttonText?: string;
+    notificationId: string;
+}
+interface Notification {
+    close: () => Promise<void>;
+}
+interface User {
+    name: string;
+    /** Hashed user id */
+    id: string;
+}
+interface ProjectInfo {
+    name: string;
+    /** Hashed project id */
+    id: string;
+}
+interface AddComponentInstanceOptions {
+    /** The component module URL. Can be copied from the components panel. */
+    url: string;
+    /** Optional component attributes. */
+    attributes?: Partial<EditableComponentInstanceNodeAttributes>;
+}
+interface AddDetachedComponentLayersOptions {
+    /** The component module URL. Can be copied from the components panel. */
+    url: string;
+    /** Optional component attributes. */
+    attributes?: Partial<EditableComponentInstanceNodeAttributes>;
+    /** Insert the layers as a layout block and match variants with breakpoints. */
+    layout?: boolean;
+}
+interface FramerAPI {
+    /** Show the plugin UI. */
+    showUI: (options?: UIOptions) => Promise<void>;
+    /** Hide the plugin window, without stopping the plugin. */
+    hideUI: () => Promise<void>;
+    /** Stop the plugin. */
+    closePlugin(message?: string, options?: ClosePluginOptions): Promise<void>;
+    /** Get the current mode. A plugin can launch in a special mode where only a subset of the API is allowed. */
+    readonly mode: Mode;
+    /** Get the current user info like name and id. */
+    getCurrentUser(): Promise<User>;
+    /** Get the project info like name and id. */
+    getProjectInfo(): Promise<ProjectInfo>;
+    /** Get the current selection. */
+    getSelection: () => Promise<CanvasNode[]>;
+    /** Set the current selection. */
+    setSelection: (nodeIds: NodeId | Iterable<NodeId>) => Promise<void>;
+    /** Subscribe to selection changes. */
+    subscribeToSelection: (selectionUpdate: (nodes: CanvasNode[]) => void) => Unsubscribe;
+    /** Get the root of the current canvas. */
+    getCanvasRoot: () => Promise<CanvasRootNode>;
+    /** Subscribe to canvas root changes */
+    subscribeToCanvasRoot: (rootUpdate: (root: CanvasRootNode) => void) => Unsubscribe;
+    /** Get the current publish info. */
+    getPublishInfo: () => Promise<PublishInfo>;
+    /** Subscribe to publish info changes. */
+    subscribeToPublishInfo: (publishInfoUpdate: (info: PublishInfo) => void) => Unsubscribe;
+    /** Create a new node on the canvas. */
+    createFrameNode(attributes: Partial<EditableFrameNodeAttributes>, parentId?: NodeId): Promise<FrameNode | null>;
+    /** Remove a node from the canvas. */
+    removeNode: (nodeId: NodeId) => Promise<void>;
+    /** Clone a node. */
+    cloneNode: (nodeId: NodeId) => Promise<AnyNode | null>;
+    /** Get a node by its id. */
+    getNode: (nodeId: NodeId) => Promise<AnyNode | null>;
+    /** Get the parent of a node. */
+    getParent: (nodeId: NodeId) => Promise<AnyNode | null>;
+    /** Get the children of a node. */
+    getChildren: (nodeId: NodeId) => Promise<AnyNode[]>;
+    /** Get the rect of a node */
+    getRect: (nodeId: NodeId) => Promise<Rect$1 | null>;
+    /** Set the attributes of a node. */
+    setAttributes: (nodeId: NodeId, attributes: Partial<AnyEditableAttributes>) => Promise<AnyNode | null>;
+    /** Set the parent of a node. */
+    setParent: (nodeId: NodeId, parentId: NodeId, index?: number) => Promise<void>;
+    /** Get all nodes of a certain class. */
+    getNodesWithType(type: "FrameNode"): Promise<FrameNode[]>;
+    getNodesWithType(type: "TextNode"): Promise<TextNode[]>;
+    getNodesWithType(type: "SVGNode"): Promise<SVGNode[]>;
+    getNodesWithType(type: "ComponentInstanceNode"): Promise<ComponentInstanceNode[]>;
+    getNodesWithType(type: "WebPageNode"): Promise<WebPageNode[]>;
+    getNodesWithType(type: "ComponentNode"): Promise<ComponentNode[]>;
+    getNodesWithType(type: KnownNodeClass): Promise<AnyNode[]>;
+    /** Get all nodes with a certain attribute. */
+    getNodesWithAttribute<T extends NodeAttributeKey, Node = NodeWithAttribute<T>>(attribute: T): Promise<Node[]>;
+    /** Get all nodes with a certain attribute which value is set. */
+    getNodesWithAttributeSet<T extends NodeAttributeKey, Node = NodeWithAttribute<T>>(attribute: T): Promise<Node[]>;
+    /** Pans and zooms the viewport to center a single or group of nodes. */
+    zoomIntoView: (nodeIds: NodeId | Iterable<NodeId>, options?: ZoomIntoViewOptions) => Promise<void>;
+    /** Upload an image, and insert on the canvas. */
+    addImage: (image: NamedImageAssetInput | File) => Promise<void>;
+    /** Upload an image, and set on the selected node. */
+    setImage: (image: NamedImageAssetInput | File) => Promise<void>;
+    /** Add multiple images, replacing the selected images, or insert on the canvas. */
+    addImages: (images: readonly NamedImageAssetInput[]) => Promise<void>;
+    /** Upload a file without assigning it to a property. */
+    uploadImage: (image: NamedImageAssetInput | File) => Promise<ImageAsset>;
+    /** Upload multiple images without assigning them to properties. */
+    uploadImages: (images: readonly NamedImageAssetInput[]) => Promise<ImageAsset[]>;
+    /** Uploads a file image without assigning it to a property. */
+    uploadFile: (file: NamedFileAssetInput | File) => Promise<FileAsset>;
+    /** Upload multiple files without assigning them to properties. */
+    uploadFiles: (files: readonly NamedFileAssetInput[]) => Promise<FileAsset[]>;
+    /** Get the image of the current selection or null if there is no image. */
+    getImage(): Promise<ImageAsset | null>;
+    /** Subscribe to single image selection changes. */
+    subscribeToImage: (imageUpdate: (image: ImageAsset | null) => void) => Unsubscribe;
+    /** Get plaintext of the current selection or null if there is no text. */
+    getText(): Promise<string | null>;
+    /** Set the text of the current selection or insert it onto the canvas. */
+    setText(text: string): Promise<void>;
+    /** Add a new text node to the canvas. */
+    addText(text: string, options?: AddTextOptions): Promise<void>;
+    /** Subscribe to the current text selection. */
+    subscribeToText: (update: (text: string | null) => void) => Unsubscribe;
+    /** Add an SVG, replacing the selected SVG, or insert on the canvas. */
+    addSVG: (svg: SVGData) => Promise<void>;
+    /** Add a component instance by module URL. */
+    addComponentInstance: (options: AddComponentInstanceOptions) => Promise<ComponentInstanceNode>;
+    /** Adds the layers of a component by module URL. */
+    addDetachedComponentLayers: (options: AddDetachedComponentLayersOptions) => Promise<FrameNode>;
+    /** Preload the component layers for detached insertion. */
+    preloadDetachedComponentLayers: (url: string) => Promise<void>;
+    preloadImageUrlForInsertion: (url: string) => Promise<void>;
+    preloadDragPreviewImage: (url: string) => Promise<void>;
+    /**
+     * Set Custom HTML to be loaded in the document.
+     * A plugin can only set custom HTML once per location.
+     */
+    setCustomCode: (options: SetCustomCodeOptions) => Promise<void>;
+    /** Get custom HTML settings set by the plugin. */
+    getCustomCode: () => Promise<CustomCode>;
+    /** Subscribe to custom HTML changes set by the plugin. */
+    subscribeToCustomCode: (callback: (customCode: CustomCode) => void) => Unsubscribe;
+    /**
+     * Allow any HTML element to become draggable. Different types of drag data can be dropped onto
+     * Framer. A function is returned to remove the draggable behavior from the element and to stop
+     * all of the added listeners.
+     */
+    makeDraggable(element: HTMLElement, getDragData: () => DragData): Cleanup;
+    /** Get the managed collection that is currently active and selected in the UI. */
+    getManagedCollection(): Promise<ManagedCollection>;
+    /** Get a specific collection. */
+    getCollection(): Promise<Collection>;
+    /** Get all collections in the project. This includes collections created by the user or a plugin. */
+    getCollections(): Promise<Collection[]>;
+    /** Display a notification message. The message will be truncated if longer than 120 characters. */
+    notify: (message: string, options?: NotifyOptions) => Notification;
+    /** Set plugin data by key */
+    getPluginData: (key: string) => Promise<string | null>;
+    /** Get plugin data by key */
+    setPluginData: (key: string, value: string | null) => Promise<void>;
+    /** Get all plugin data keys */
+    getPluginDataKeys: () => Promise<string[]>;
+    /** Get all color styles in the project. */
+    getColorStyles: () => Promise<ColorStyle[]>;
+    /** Get a specific color style. */
+    getColorStyle: (id: string) => Promise<ColorStyle | null>;
+    /** Add a new color style to the project. */
+    createColorStyle: (attributes: ColorStyleAttributes) => Promise<ColorStyle>;
+    /** Fired when a color style is added, edited or removed. */
+    subscribeToColorStyles: (callback: (styles: ColorStyle[]) => void) => Unsubscribe;
+    /** Get a specific text style. */
+    getTextStyle: (id: string) => Promise<TextStyle | null>;
+    /** Get all text styles in the project. */
+    getTextStyles: () => Promise<TextStyle[]>;
+    /** Add a new text style to the project. */
+    createTextStyle: (attributes: TextStyleAttributes) => Promise<TextStyle>;
+    /** Fired when a text style is added, edited or removed. */
+    subscribeToTextStyles: (callback: (styles: TextStyle[]) => void) => Unsubscribe;
+    /** Get a specific font via it's family name, and optionally weight and style. */
+    getFont: (family: string, attributes?: FontAttributes) => Promise<Font | null>;
+    /** Get all available fonts. */
+    getFonts: () => Promise<Font[]>;
+}
+type Extends<T, U extends T> = U;
+type CreateNodeType = Extends<PluginNodeClass, "FrameNode">;
+type ComponentDragData = Omit<Extract<DragData, {
+    type: "componentInstance";
+}>, "attributes"> & {
+    attributes?: Record<string, unknown>;
+};
+type OtherDragData = Exclude<DragData, {
+    type: "componentInstance";
+}>;
+type MessageApiDragData = ComponentDragData | OtherDragData;
+type NotificationCloseReason = "timeoutReachedOrDismissed" | "actionButtonClicked";
+interface PluginMessageAPI extends Pick<FramerAPI, "hideUI" | "closePlugin" | "getCurrentUser" | "getProjectInfo" | "addSVG" | "getRect" | "setText" | "getText" | "addText" | "preloadDetachedComponentLayers" | "preloadImageUrlForInsertion" | "preloadDragPreviewImage" | "setCustomCode" | "getCustomCode" | "setPluginData" | "getPluginData" | "getPluginDataKeys"> {
+    showUI: (options?: UIOptions) => Promise<void>;
+    notify: (message: string, options: NotifyOptionsData) => Promise<NotificationCloseReason>;
+    closeNotification: (notificationId: string) => Promise<void>;
+    getSelection: () => Promise<SomeNodeData[]>;
+    setSelection: (nodeIds: NodeId[]) => Promise<void>;
+    getCanvasRoot: () => Promise<SomeNodeData>;
+    getPublishInfo: () => Promise<PublishInfo>;
+    createNode: (type: CreateNodeType, parentId: NodeId | null, attributes: Record<string, unknown>) => Promise<SomeNodeData | null>;
+    removeNode: (nodeId: NodeId) => Promise<void>;
+    cloneNode: (nodeId: NodeId) => Promise<SomeNodeData | null>;
+    getNode: (nodeId: NodeId) => Promise<SomeNodeData | null>;
+    getParent: (nodeId: NodeId) => Promise<SomeNodeData | null>;
+    getChildren: (nodeId: NodeId) => Promise<SomeNodeData[]>;
+    zoomIntoView: (nodeIds: NodeId[], options?: ZoomIntoViewOptions) => Promise<void>;
+    setAttributes: (nodeId: NodeId, attributes: Record<string, unknown>) => Promise<SomeNodeData | null>;
+    getTextForNode(nodeId: string): Promise<string | null>;
+    setTextForNode(nodeId: string, text: string): Promise<void>;
+    getNodesWithType: (nodeId: string | null, type: KnownNodeClass) => Promise<SomeNodeData[]>;
+    getNodesWithAttribute: (nodeId: string | null, attribute: string) => Promise<SomeNodeData[]>;
+    getNodesWithAttributeSet: (nodeId: string | null, attribute: string) => Promise<SomeNodeData[]>;
+    addImages: (image: readonly NamedImageTransfer[]) => Promise<void>;
+    getImage(): Promise<ImageAssetData | null>;
+    addImage(image: NamedImageTransfer): Promise<void>;
+    setImage(image: NamedImageTransfer): Promise<void>;
+    uploadImage(image: NamedImageTransfer): Promise<ImageAssetData>;
+    uploadImages: (image: readonly NamedImageTransfer[]) => Promise<ImageAssetData[]>;
+    uploadFile: (file: NamedAssetTransfer) => Promise<FileAssetData>;
+    uploadFiles: (files: readonly NamedAssetTransfer[]) => Promise<FileAssetData[]>;
+    getImageData: (image: AssetIdentifier) => Promise<BytesData>;
+    setParent: (nodeId: NodeId, parentId: NodeId, index?: number) => Promise<void>;
+    addComponentInstance: (options: {
+        url: string;
+        attributes?: Partial<Record<string, unknown>>;
+    }) => Promise<SomeNodeData>;
+    addDetachedComponentLayers: (options: {
+        url: string;
+        layout?: boolean;
+        attributes?: Partial<Record<string, unknown>>;
+    }) => Promise<SomeNodeData>;
+    setDragData: (dragSessionId: string, dragData: MessageApiDragData) => Promise<void>;
+    onDragStart: (info: DragStartInfo) => Promise<void>;
+    onDrag: (info: DragInfo) => Promise<string | null>;
+    onDragEnd: (info: DragEndInfo) => Promise<void>;
+    onPointerDown: () => Promise<void>;
+    getManagedCollection: () => Promise<CollectionData>;
+    getManagedCollectionItemIds: (id: NodeId) => Promise<string[]>;
+    setManagedCollectionItemOrder: (id: NodeId, ids: string[]) => Promise<void>;
+    setManagedCollectionFields: (id: NodeId, fields: EditableManagedCollectionField[]) => Promise<void>;
+    getManagedCollectionFields: (id: NodeId) => Promise<ManagedCollectionField[]>;
+    addManagedCollectionItems: (id: NodeId, items: CollectionItemData[]) => Promise<void>;
+    removeManagedCollectionItems: (id: NodeId, ids: string[]) => Promise<void>;
+    getCollection: () => Promise<CollectionData>;
+    getCollections: () => Promise<CollectionData[]>;
+    getCollectionItems: (id: NodeId) => Promise<CollectionItemData[]>;
+    getCollectionFields: (id: NodeId) => Promise<CollectionField[]>;
+    getPluginDataForNode: (id: NodeId, key: string) => Promise<string | null>;
+    setPluginDataForNode: (id: NodeId, key: string, value: string | null) => Promise<void>;
+    getPluginDataKeysForNode: (id: NodeId) => Promise<string[]>;
+    getColorStyle(id: NodeId): Promise<ColorStyleData | null>;
+    getColorStyles(): Promise<ColorStyleData[]>;
+    createColorStyle(attributes: Record<string, unknown>): Promise<ColorStyleData>;
+    setColorStyleAttributes(id: NodeId, update: Record<string, unknown>): Promise<ColorStyleData | null>;
+    removeColorStyle(id: NodeId): Promise<void>;
+    getTextStyle: (id: NodeId) => Promise<TextStyleData | null>;
+    getTextStyles: () => Promise<TextStyleData[]>;
+    createTextStyle: (attributes: Record<string, unknown>) => Promise<TextStyleData>;
+    setTextStyleAttributes: (id: NodeId, update: Record<string, unknown>) => Promise<TextStyleData | null>;
+    removeTextStyle: (id: NodeId) => Promise<void>;
+    getFont: (family: string, attributes?: Record<string, unknown>) => Promise<FontData | null>;
+    getFonts: () => Promise<FontData[]>;
+}
+
+type AssetId = string;
+interface AssetIdentifier {
+    id: string;
+}
+interface WithOptionalName {
+    name?: string;
+}
+interface AssetData extends WithOptionalName {
+    /** Something that can be rendered within the iFrame. Always the original size of the image */
+    url: string;
+}
+interface FileAssetDataFields extends AssetData {
+    extension: string | null;
+}
+declare const fileAssetDiscriminator: "FileAsset";
+interface FileAssetData extends AssetIdentifier, FileAssetDataFields {
+    __class: typeof fileAssetDiscriminator;
+}
+declare class FileAsset implements AssetIdentifier, FileAssetDataFields {
+    readonly id: AssetId;
+    readonly url: string;
+    readonly extension: string | null;
+    constructor(data: FileAssetData);
+}
+declare function isFileAsset(value: unknown): value is FileAsset;
+interface ImageDataFields extends AssetData {
+    /**
+     * Thumbnail URL of the image.
+     */
+    thumbnailUrl: string;
+    /**
+     * Optional Alt Text of the image.
+     */
+    altText?: string;
+}
+declare const imageAssetDiscriminator: "ImageAsset";
+interface ImageAssetData extends AssetIdentifier, ImageDataFields {
+    __class: typeof imageAssetDiscriminator;
+}
+interface Size {
+    width: number;
+    height: number;
+}
+declare class ImageAsset implements ImageDataFields, AssetIdentifier {
+    #private;
+    readonly id: AssetId;
+    readonly url: string;
+    readonly thumbnailUrl: string;
+    readonly altText: string | undefined;
+    constructor(data: ImageAssetData, api: FramerAPI);
+    cloneWithAttributes({ altText }: Prettify<Partial<Pick<ImageAssetData, "altText">>>): ImageAsset;
+    measure(): Promise<Size>;
+    /**
+     * Get the data such as the bytes of the image.
+     * The bytes can be used to manipulate the pixels of the image.
+     */
+    getData(): Promise<BytesData>;
+    loadBitmap(): Promise<ImageBitmap>;
+    loadImage(): Promise<HTMLImageElement>;
+}
+declare function isImageAsset(value: unknown): value is ImageAsset;
+type AssetInput = string | File | BytesData;
+interface NamedImageAssetInput extends ImageData {
+    image: AssetInput;
+}
+interface NamedFileAssetInput extends WithOptionalName {
+    file: AssetInput;
+}
+interface AssetURLDataTransfer {
+    type: "url";
+    url: string;
+}
+interface BytesData {
+    bytes: Uint8Array;
+    mimeType: string;
+}
+type BytesDataTransfer = BytesData & {
+    type: "bytes";
+};
+interface ImageData extends WithOptionalName {
+    altText?: string;
+}
+type AssetDataTransfer = AssetURLDataTransfer | BytesDataTransfer;
+type NamedImageTransfer = AssetDataTransfer & ImageData;
+type NamedAssetTransfer = AssetDataTransfer & WithOptionalName;
+interface SVGData extends WithOptionalName {
+    svg: string;
+}
+
+interface DraggableProps {
+    data: DragData | (() => DragData);
+    children: React.ReactElement;
+}
+declare const Draggable: React.FC<DraggableProps>;
+
+declare function useMakeDraggable(ref: RefObject<HTMLElement>, data: DragData | (() => DragData)): void;
+
+declare const framer: FramerPluginAPI;
+
+declare class FramerPluginError extends Error {
+}
+
+export { type AllTraits, type AnyNode, type BooleanField, type BorderRadius, type CanvasNode, type CanvasRootNode, Collection, type CollectionField, CollectionItem, type CollectionItemData, type ColorField, type ColorStop, ColorStyle, ComponentInstanceNode, ComponentNode, ConicGradient, type ControlAttributes, type CustomCode, type CustomCodeLocation, type DateField, Draggable, type EnumField, type FitContent, Font, type FormattedTextField, type FractionalLength, FrameNode, FramerPluginError, type Gradient, type HeightConstraint, type HeightLength, ImageAsset, type ImageField, type Length, LinearGradient, type LinkField, ManagedCollection, type ManagedCollectionField, type Mode, type NodeAttributeKey, type NodeId, type Notification, type NumberField, type PercentageLength, type PixelLength, type Position, type ProjectInfo, type Publish, type PublishInfo, RadialGradient, type Rect$1 as Rect, SVGNode, type StringField, type TextAlignment, type TextDecoration, TextNode, TextStyle, type TextStyleBreakpoint, type TextStyleTag, type TextTransform, type TraitVariant, type TraitVariantData, type TraitVariantNode, type UIOptions, type User, type ViewportHeightLength, type ViewportWidthLength, WebPageNode, type WidthConstraint, type WidthLength, type WithAspectRatioTrait, type WithBackgroundColorTrait, type WithBackgroundGradientTrait, type WithBackgroundImageTrait, type WithBorderRadiusTrait, type WithComponentInfoTrait, type WithControlAttributesTrait, type WithFontTrait, type WithIdTrait, type WithInlineTextStyleTrait, type WithLinkTrait, type WithLockedTrait, type WithNameTrait, type WithOpacityTrait, type WithPinsTrait, type WithPositionTrait, type WithReplicaInfoTrait, type WithRotationTrait, type WithSVGTrait, type WithSizeConstraintsTrait, type WithSizeTrait, type WithVisibleTrait, type WithWebPageInfoTrait, framer, isComponentInstanceNode, isComponentNode, isFileAsset, isFrameNode, isImageAsset, isSVGNode, isTextNode, isTextStyle, isWebPageNode, supportsAspectRatio, supportsBackgroundColor, supportsBackgroundGradient, supportsBackgroundGradientData, supportsBackgroundImage, supportsBackgroundImageData, supportsBorderRadius, supportsComponentInfo, supportsFont, supportsFontData, supportsInlineTextStyle, supportsInlineTextStyleData, supportsLink, supportsLocked, supportsName, supportsOpacity, supportsPins, supportsPosition, supportsRotation, supportsSVG, supportsSize, supportsSizeConstraints, supportsVisible, useMakeDraggable };
