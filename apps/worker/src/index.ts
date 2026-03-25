@@ -29,7 +29,7 @@ export default {
     const cors = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     }
 
     if (request.method === 'OPTIONS') {
@@ -106,8 +106,9 @@ export default {
         // Check ownership
         const exp = await env.DB.prepare('SELECT * FROM experiments WHERE id = ? AND project_id = ?').bind(experimentId, auth.projectId).first()
         if (!exp) return Response.json({ error: 'Experiment not found' }, { status: 404, headers: cors })
-        // Reset data
+        // Delete all events AND increment version so existing visitor cookies become invalid
         await env.DB.prepare('DELETE FROM events WHERE experiment_id = ?').bind(experimentId).run()
+        await env.DB.prepare('UPDATE experiments SET version = version + 1, updated_at = ? WHERE id = ?').bind(new Date().toISOString(), experimentId).run()
         return Response.json({ success: true }, { headers: cors })
       } else if (url.pathname.startsWith('/v1/experiments/') && request.method === 'PATCH') {
         const auth = await checkAuth(request, env, 'read')

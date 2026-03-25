@@ -1,6 +1,8 @@
 {
-  "id": "ab-testing-plugin",
+  "id": "abtest",
   "name": "A/B Testing",
   "api": "1.0.0",
-  "icon": "/icon.svg"
+  "icon": "./icon.svg",
+  "modes": ["canvas"],
+  "main": "src/main.tsx"
 }

@@ -1,8 +1,8 @@
 {
   "name": "@ab-platform/runtime",
   "version": "1.0.0",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/index.ts",
+  "types": "./dist/index.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"
