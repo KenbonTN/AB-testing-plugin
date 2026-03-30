@@ -11,7 +11,7 @@
   "dependencies": {
     "@ab-platform/types": "workspace:*",
     "@ab-platform/ui": "workspace:*",
-    "framer-plugin": "^0.3.0",
+    "framer-plugin": "^3.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
