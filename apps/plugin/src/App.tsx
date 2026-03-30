@@ -7,6 +7,164 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://ab-testing-worker.kenbo
 const SK_WRITE = 'ab_write_key'
 const SK_READ = 'ab_read_key'
 
+// ─── code file templates ─────────────────────────────────────────────────────
+
+function generateSectionSwapCode(experimentId: string, writeKey: string, apiUrl: string): string {
+  return `import { useLayoutEffect, useState } from "react"
+import { addPropertyControls, ControlType } from "framer"
+
+export default function ABSectionSwap({
+  experimentId = ${JSON.stringify(experimentId)},
+  writeKey = ${JSON.stringify(writeKey)},
+  cookieDays = 30,
+  split = 50,
+  variantA,
+  variantB,
+  respectConsent = false,
+  consentCookieName = "cookie_consent",
+  apiUrl = ${JSON.stringify(apiUrl)},
+}) {
+  const [variant, setVariant] = useState("A")
+  const [visible, setVisible] = useState(false)
+
+  const hasConsent = () => {
+    if (!respectConsent) return true
+    const c = document.cookie.split("; ").find(r => r.startsWith(\`\${consentCookieName}=\`))
+    if (!c) return false
+    const v = c.split("=").slice(1).join("=")
+    return v === "true" || v === "accepted" || v === "1"
+  }
+
+  const getOrCreateVisitorId = () => {
+    const key = \`ab-user-\${experimentId}\`
+    let id = localStorage.getItem(key)
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id) }
+    return id
+  }
+
+  const resolveVariant = () => {
+    if (respectConsent && !hasConsent()) return "A"
+    const key = \`ab_\${experimentId}\`
+    const existing = document.cookie.split("; ").find(r => r.startsWith(\`\${key}=\`))
+    if (existing) {
+      const v = existing.split("=").slice(1).join("=")
+      if (v === "A" || v === "B") return v
+    }
+    const assigned = Math.random() * 100 < split ? "A" : "B"
+    const expires = new Date()
+    expires.setDate(expires.getDate() + cookieDays)
+    document.cookie = \`\${key}=\${assigned}; expires=\${expires.toUTCString()}; path=/; SameSite=Lax\`
+    return assigned
+  }
+
+  useLayoutEffect(() => {
+    const assigned = resolveVariant()
+    setVariant(assigned)
+    setVisible(true)
+    if (!hasConsent()) return
+    const trackedKey = \`ab-imp-\${experimentId}\`
+    if (sessionStorage.getItem(trackedKey)) return
+    sessionStorage.setItem(trackedKey, "1")
+    const visitorId = getOrCreateVisitorId()
+    fetch(\`\${apiUrl}/v1/events\`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: \`Bearer \${writeKey}\` },
+      body: JSON.stringify({ experiment_id: experimentId, type: "impression", variant: assigned, visitor_id: visitorId }),
+    }).catch(() => sessionStorage.removeItem(trackedKey))
+  }, [])
+
+  return (
+    <div style={{ visibility: visible ? "visible" : "hidden" }}>
+      {variant === "A" ? variantA : variantB}
+    </div>
+  )
+}
+
+addPropertyControls(ABSectionSwap, {
+  experimentId: { type: ControlType.String, title: "Experiment ID", defaultValue: ${JSON.stringify(experimentId)} },
+  writeKey: { type: ControlType.String, title: "Write Key", defaultValue: ${JSON.stringify(writeKey)} },
+  cookieDays: { type: ControlType.Number, title: "Cookie Days", defaultValue: 30, min: 1, max: 365 },
+  split: { type: ControlType.Number, title: "Split % (A)", defaultValue: 50, min: 0, max: 100 },
+  variantA: { type: ControlType.Slot, title: "Variant A" },
+  variantB: { type: ControlType.Slot, title: "Variant B" },
+  respectConsent: { type: ControlType.Boolean, title: "Respect Consent", defaultValue: false },
+  consentCookieName: { type: ControlType.String, title: "Consent Cookie Name", defaultValue: "cookie_consent" },
+  apiUrl: { type: ControlType.String, title: "API URL", defaultValue: ${JSON.stringify(apiUrl)} },
+})`
+}
+
+function generateConversionTriggerCode(experimentId: string, writeKey: string, apiUrl: string): string {
+  return `import { useEffect, useRef } from "react"
+import { addPropertyControls, ControlType } from "framer"
+
+export default function ABConversionTrigger({
+  experimentId = ${JSON.stringify(experimentId)},
+  writeKey = ${JSON.stringify(writeKey)},
+  eventName = "conversion",
+  triggerOn = "click",
+  children,
+  respectConsent = false,
+  consentCookieName = "cookie_consent",
+  apiUrl = ${JSON.stringify(apiUrl)},
+}) {
+  const firedRef = useRef(false)
+  const ref = useRef(null)
+
+  const hasConsent = () => {
+    if (!respectConsent) return true
+    const c = document.cookie.split("; ").find(r => r.startsWith(\`\${consentCookieName}=\`))
+    if (!c) return false
+    const v = c.split("=").slice(1).join("=")
+    return v === "true" || v === "accepted" || v === "1"
+  }
+
+  const track = () => {
+    if (!hasConsent()) return
+    const variantCookie = document.cookie.split("; ").find(r => r.startsWith(\`ab_\${experimentId}=\`))
+    if (!variantCookie) return
+    const variant = variantCookie.split("=").slice(1).join("=")
+    if (variant !== "A" && variant !== "B") return
+    const visitorId = localStorage.getItem(\`ab-user-\${experimentId}\`) ?? null
+    fetch(\`\${apiUrl}/v1/events\`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: \`Bearer \${writeKey}\` },
+      body: JSON.stringify({ experiment_id: experimentId, type: eventName, variant, visitor_id: visitorId }),
+    }).catch(() => {})
+  }
+
+  useEffect(() => {
+    if (triggerOn === "mount") { track(); return }
+    if (triggerOn === "visible" && ref.current) {
+      const obs = new IntersectionObserver(([e]) => {
+        if (e.isIntersecting && !firedRef.current) { firedRef.current = true; track(); obs.disconnect() }
+      }, { threshold: 0.5 })
+      obs.observe(ref.current)
+      return () => obs.disconnect()
+    }
+  }, [])
+
+  if (triggerOn === "click") {
+    return (
+      <div ref={ref} onClick={() => { if (!firedRef.current) { firedRef.current = true; track() } }}>
+        {children}
+      </div>
+    )
+  }
+  return <div ref={ref}>{children}</div>
+}
+
+addPropertyControls(ABConversionTrigger, {
+  experimentId: { type: ControlType.String, title: "Experiment ID", defaultValue: ${JSON.stringify(experimentId)} },
+  writeKey: { type: ControlType.String, title: "Write Key", defaultValue: ${JSON.stringify(writeKey)} },
+  eventName: { type: ControlType.String, title: "Event Name", defaultValue: "conversion" },
+  triggerOn: { type: ControlType.Enum, title: "Trigger On", options: ["click", "mount", "visible"], defaultValue: "click" },
+  children: { type: ControlType.Slot, title: "Children" },
+  respectConsent: { type: ControlType.Boolean, title: "Respect Consent", defaultValue: false },
+  consentCookieName: { type: ControlType.String, title: "Consent Cookie Name", defaultValue: "cookie_consent" },
+  apiUrl: { type: ControlType.String, title: "API URL", defaultValue: ${JSON.stringify(apiUrl)} },
+})`
+}
+
 type Screen = 'loading' | 'setup' | 'list' | 'create' | 'stats'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -102,6 +260,7 @@ export function App() {
   const [createLoading, setCreateLoading] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [createdId, setCreatedId] = useState<string | null>(null)
+  const [injectionStatus, setInjectionStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
   // ── init: load keys from Framer plugin storage (async) ────────────────────
 
@@ -226,6 +385,20 @@ export function App() {
     }
   }
 
+  // ── inject code files into Framer project ────────────────────────────────
+
+  const injectComponents = async (experimentId: string, expWriteKey: string) => {
+    const swapCode = generateSectionSwapCode(experimentId, expWriteKey, API_URL)
+    const triggerCode = generateConversionTriggerCode(experimentId, expWriteKey, API_URL)
+    const existingFiles = await framer.getCodeFiles()
+    const swapFile = existingFiles.find(f => f.name === 'ABSectionSwap')
+    const triggerFile = existingFiles.find(f => f.name === 'ABConversionTrigger')
+    await Promise.all([
+      swapFile ? swapFile.setFileContent(swapCode) : framer.createCodeFile('ABSectionSwap', swapCode),
+      triggerFile ? triggerFile.setFileContent(triggerCode) : framer.createCodeFile('ABConversionTrigger', triggerCode),
+    ])
+  }
+
   // ── create experiment ─────────────────────────────────────────────────────
 
   const handleCreate = async () => {
@@ -249,6 +422,13 @@ export function App() {
         await selectedNode.setPluginData('ab_experiment_id', data.experiment_id)
         setNodeLinkedExpId(data.experiment_id)
       }
+      // Inject pre-configured code components into the Framer project
+      try {
+        await injectComponents(data.experiment_id, writeKey)
+        setInjectionStatus('success')
+      } catch {
+        setInjectionStatus('error')
+      }
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -262,6 +442,7 @@ export function App() {
     setCookieDays(30)
     setCreatedId(null)
     setCreateError(null)
+    setInjectionStatus('idle')
   }
 
   // ── status / reset ────────────────────────────────────────────────────────
