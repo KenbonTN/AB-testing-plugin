@@ -118,7 +118,7 @@ export function ABConversionTrigger({
     <div
       ref={containerRef}
       onClick={triggerOn === 'click' ? handleClick : undefined}
-      style={{ display: 'contents' }}
+      style={{ display: 'block', cursor: triggerOn === 'click' ? 'pointer' : undefined }}
       data-ab-experiment={experimentId}
       data-ab-trigger={triggerOn}
     >

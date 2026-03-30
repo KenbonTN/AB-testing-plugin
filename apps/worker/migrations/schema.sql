@@ -48,5 +48,4 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_events_experiment ON events(experiment_id);
 CREATE INDEX IF NOT EXISTS idx_events_visitor ON events(visitor_id);
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_event ON events (experiment_id, experiment_version, visitor_id, type);
 
