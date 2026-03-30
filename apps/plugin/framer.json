@@ -3,7 +3,7 @@
   "name": "A/B Testing",
   "api": "1.0.0",
   "icon": "./icon.svg",
-  "modes": ["canvas"],
+  "modes": ["canvas", "code"],
   "main": "src/main.tsx",
   "components": ["src/ABSectionSwap.tsx", "src/ABConversionTrigger.tsx"]
 }
