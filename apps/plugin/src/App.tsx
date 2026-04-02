@@ -70,12 +70,13 @@ export default function ABSectionSwap({
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: \`Bearer \${writeKey}\` },
       body: JSON.stringify({ experiment_id: experimentId, type: "impression", variant: assigned, visitor_id: visitorId }),
-    }).catch(() => sessionStorage.removeItem(trackedKey))
+    }).then(res => { if (!res.ok) sessionStorage.removeItem(trackedKey) }).catch(() => sessionStorage.removeItem(trackedKey))
   }, [])
 
   return (
     <div style={{ visibility: visible ? "visible" : "hidden" }}>
-      {variant === "A" ? variantA : variantB}
+      <div style={{ display: variant === "A" ? "contents" : "none" }}>{variantA}</div>
+      <div style={{ display: variant === "B" ? "contents" : "none" }}>{variantB}</div>
     </div>
   )
 }

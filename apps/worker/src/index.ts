@@ -146,16 +146,17 @@ export default {
             { error: "Experiment not found" },
             { status: 404, headers: cors },
           );
-        // Compute stats
+        // Compute stats — only count events from the current experiment version
+        const currentVersion = (exp as any).version as number;
         const impressions = await env.DB.prepare(
-          "SELECT variant, COUNT(*) as count FROM events WHERE experiment_id = ? AND type = ? GROUP BY variant",
+          "SELECT variant, COUNT(*) as count FROM events WHERE experiment_id = ? AND experiment_version = ? AND type = ? GROUP BY variant",
         )
-          .bind(experimentId, "impression")
+          .bind(experimentId, currentVersion, "impression")
           .all();
         const conversions = await env.DB.prepare(
-          "SELECT variant, COUNT(*) as count FROM events WHERE experiment_id = ? AND type = ? GROUP BY variant",
+          "SELECT variant, COUNT(*) as count FROM events WHERE experiment_id = ? AND experiment_version = ? AND type = ? GROUP BY variant",
         )
-          .bind(experimentId, "conversion")
+          .bind(experimentId, currentVersion, "conversion")
           .all();
         const stats = {
           A: { impressions: 0, conversions: 0, conversion_rate: 0 },
@@ -269,7 +270,7 @@ export default {
             { status: 400, headers: cors },
           );
         await env.DB.prepare(
-          "INSERT INTO events (id, experiment_id, experiment_version, visitor_id, variant, type) VALUES (?, ?, ?, ?, ?, ?)",
+          "INSERT OR IGNORE INTO events (id, experiment_id, experiment_version, visitor_id, variant, type) VALUES (?, ?, ?, ?, ?, ?)",
         )
           .bind(
             generateUUID(),

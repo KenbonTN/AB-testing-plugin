@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useState } from 'react'
-import { addPropertyControls, ControlType } from 'framer'
+import { addPropertyControls, ControlType, RenderTarget } from 'framer'
 
 interface ABSectionSwapProps {
   experimentId: string
@@ -27,7 +27,7 @@ export function ABSectionSwap({
   split = 50,
   variantA,
   variantB,
-  respectConsent = true,
+  respectConsent = false,
   consentCookieName = 'cookie_consent',
   apiUrl = DEFAULT_API_URL,
 }: ABSectionSwapProps) {
@@ -87,7 +87,7 @@ export function ABSectionSwap({
 
     try {
       const visitorId = getOrCreateVisitorId()
-      await fetch(`${apiUrl}/v1/events`, {
+      const res = await fetch(`${apiUrl}/v1/events`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,23 +100,40 @@ export function ABSectionSwap({
           visitor_id: visitorId,
         }),
       })
+      if (!res.ok) {
+        // Server rejected the event — clear dedup so it retries on next mount
+        sessionStorage.removeItem(impressionTrackedKey(experimentId))
+      }
     } catch {
-      // Remove dedup flag so it can retry on next mount if request failed
+      // Network error — clear dedup so it retries on next mount
       sessionStorage.removeItem(impressionTrackedKey(experimentId))
     }
   }
 
   // useLayoutEffect fires synchronously before browser paint — prevents flicker
   useLayoutEffect(() => {
+    // In the Framer editor canvas: show variant A, no cookies, no tracking
+    if (RenderTarget.current() === RenderTarget.canvas) {
+      setVisible(true)
+      return
+    }
+
     const assigned = resolveVariant()
     setVariant(assigned)
     setVisible(true)
     trackImpression(assigned) // async, non-blocking — fire and forget
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Both slots must be in the DOM for Framer to publish them.
+  // We show/hide via CSS instead of conditional rendering.
   return (
     <div style={{ visibility: visible ? 'visible' : 'hidden' }}>
-      {variant === 'A' ? variantA : variantB}
+      <div style={{ display: variant === 'A' ? 'contents' : 'none' }}>
+        {variantA}
+      </div>
+      <div style={{ display: variant === 'B' ? 'contents' : 'none' }}>
+        {variantB}
+      </div>
     </div>
   )
 }
@@ -155,7 +172,7 @@ addPropertyControls(ABSectionSwap, {
   respectConsent: {
     type: ControlType.Boolean,
     title: 'Respect Consent',
-    defaultValue: true,
+    defaultValue: false,
   },
   consentCookieName: {
     type: ControlType.String,
