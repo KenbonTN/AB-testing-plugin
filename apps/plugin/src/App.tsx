@@ -244,6 +244,7 @@ export function App() {
   const [stats, setStats] = useState<ExperimentStats | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [statsError, setStatsError] = useState<string | null>(null)
+  const [resetConfirm, setResetConfirm] = useState(false)
 
   // selection
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(null)
@@ -465,16 +466,27 @@ export function App() {
   }
 
   const handleReset = async (expId: string) => {
-    if (!confirm('Delete all event data for this experiment? This increments the experiment version so all existing visitor assignments are invalidated.')) return
+    if (!resetConfirm) {
+      setResetConfirm(true)
+      return
+    }
+    setResetConfirm(false)
     try {
-      await fetch(`${API_URL}/v1/experiments/${encodeURIComponent(expId)}/reset`, {
+      const res = await fetch(`${API_URL}/v1/experiments/${encodeURIComponent(expId)}/reset`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${readKey}` },
       })
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}))
+        throw new Error((b as any).error ?? `HTTP ${res.status}`)
+      }
       setStats(null)
-      if (selectedExp) fetchStats(selectedExp)
+      setStatsLoading(true)
+      if (selectedExp) await fetchStats(selectedExp)
+      setStatsLoading(false)
     } catch (e) {
       setStatsError(e instanceof Error ? e.message : String(e))
+      setStatsLoading(false)
     }
   }
 
@@ -720,7 +732,7 @@ export function App() {
     return (
       <div className="app-root">
         <div className="header-row">
-          <button className="btn-ghost btn-sm" onClick={() => { setSelectedExp(null); setScreen('list') }}>← Back</button>
+          <button className="btn-ghost btn-sm" onClick={() => { setResetConfirm(false); setSelectedExp(null); setScreen('list') }}>← Back</button>
           <div className="header-actions">
             {nextStatus && (
               <button
@@ -735,7 +747,9 @@ export function App() {
                 Complete
               </button>
             )}
-            <button className="btn-danger btn-sm" onClick={() => handleReset(selectedExp.id)}>Reset</button>
+            <button className="btn-danger btn-sm" onClick={() => handleReset(selectedExp.id)}>
+              {resetConfirm ? 'Confirm Reset?' : 'Reset'}
+            </button>
           </div>
         </div>
 
