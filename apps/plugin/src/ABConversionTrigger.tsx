@@ -1,153 +1,125 @@
-import React, { useCallback, useEffect, useRef } from "react";
-import { addPropertyControls, ControlType, RenderTarget } from "framer";
+import { useEffect, useRef, type ReactNode } from "react";
+import { addPropertyControls, ControlType } from "framer";
 
-interface ABConversionTriggerProps {
-  experimentId: string;
-  writeKey: string;
-  eventName?: string;
-  triggerOn?: "click" | "mount" | "visible";
-  children: React.ReactNode;
-  respectConsent?: boolean;
-  consentCookieName?: string;
-  apiUrl?: string;
-}
-
-const DEFAULT_API_URL = "https://ab-testing-worker.kenbonfloziio.workers.dev";
-
-// Must match keys used in ABSectionSwap
-const variantCookieKey = (id: string) => `ab_${id}`;
-const visitorStorageKey = (id: string) => `ab-user-${id}`;
-
-export function ABConversionTrigger({
-  experimentId,
-  writeKey,
+export default function ABConversionTrigger({
+  experimentId = "",
+  writeKey = "",
   eventName = "conversion",
   triggerOn = "click",
   children,
   respectConsent = false,
   consentCookieName = "cookie_consent",
-  apiUrl = DEFAULT_API_URL,
-}: ABConversionTriggerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  apiUrl = "https://ab-testing-worker.kenbonfloziio.workers.dev ",
+}: {
+  experimentId?: string;
+  writeKey?: string;
+  eventName?: string;
+  triggerOn?: "click" | "mount" | "visible" | "submit";
+  children?: ReactNode;
+  respectConsent?: boolean;
+  consentCookieName?: string;
+  apiUrl?: string;
+}) {
   const firedRef = useRef(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-  const hasConsent = (): boolean => {
+  const hasConsent = () => {
     if (!respectConsent) return true;
-    const cookies = document.cookie.split("; ");
-    const consentCookie = cookies.find((row) =>
-      row.startsWith(`${consentCookieName}=`),
-    );
-    if (!consentCookie) return false;
-    const value = consentCookie.split("=").slice(1).join("=");
-    return value === "true" || value === "accepted" || value === "1";
-  };
-
-  // Read the variant assigned by ABSectionSwap from cookie
-  const getAssignedVariant = (): "A" | "B" | null => {
-    const key = variantCookieKey(experimentId);
-    const found = document.cookie
+    const c = document.cookie
       .split("; ")
-      .find((row) => row.startsWith(`${key}=`));
-    if (!found) return null;
-    const value = found.split("=").slice(1).join("=");
-    return value === "A" || value === "B" ? value : null;
+      .find((r) => r.startsWith(`${consentCookieName}=`));
+    if (!c) return false;
+    const v = c.split("=").slice(1).join("=");
+    return v === "true" || v === "accepted" || v === "1";
   };
 
-  const fireConversion = useCallback(async () => {
-    if (RenderTarget.current() === RenderTarget.canvas) return;
+  const track = () => {
     if (!hasConsent()) return;
-
-    const variant = getAssignedVariant();
-    // Spec: "If no assignment cookie: do nothing"
-    if (!variant) return;
-
-    const visitorId = localStorage.getItem(visitorStorageKey(experimentId));
-
-    try {
-      await fetch(`${apiUrl}/v1/events`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${writeKey}`,
-        },
-        body: JSON.stringify({
-          experiment_id: experimentId,
-          type: eventName,
-          variant,
-          visitor_id: visitorId,
-        }),
-      });
-    } catch {
-      // Fail silently — don't break the site
-    }
-  }, [
-    experimentId,
-    writeKey,
-    eventName,
-    apiUrl,
-    respectConsent,
-    consentCookieName,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // triggerOn="mount" — fire once on mount
-  useEffect(() => {
-    if (triggerOn !== "mount") return;
-    if (firedRef.current) return;
-    firedRef.current = true;
-    fireConversion();
-  }, [triggerOn, fireConversion]);
-
-  // triggerOn="visible" — fire once when 50% of element enters viewport
-  useEffect(() => {
-    if (triggerOn !== "visible") return;
-    if (!containerRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting && !firedRef.current) {
-            firedRef.current = true;
-            fireConversion();
-            observer.disconnect();
-          }
-        }
+    const variantCookie = document.cookie
+      .split("; ")
+      .find((r) => r.startsWith(`ab_${experimentId}=`));
+    if (!variantCookie) return;
+    const variant = variantCookie.split("=").slice(1).join("=");
+    if (variant !== "A" && variant !== "B") return;
+    const visitorId = localStorage.getItem(`ab-user-${experimentId}`) ?? null;
+    fetch(`${apiUrl}/v1/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${writeKey}`,
       },
-      { threshold: 0.5 },
+      body: JSON.stringify({
+        experiment_id: experimentId,
+        type: eventName,
+        variant,
+        visitor_id: visitorId,
+      }),
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (triggerOn === "mount") {
+      track();
+      return;
+    }
+    if (triggerOn === "visible" && ref.current) {
+      const obs = new IntersectionObserver(
+        ([e]) => {
+          if (e.isIntersecting && !firedRef.current) {
+            firedRef.current = true;
+            track();
+            obs.disconnect();
+          }
+        },
+        { threshold: 0.5 },
+      );
+      obs.observe(ref.current);
+      return () => obs.disconnect();
+    }
+    if (triggerOn === "submit" && ref.current) {
+      const el = ref.current as any;
+      const form = el.tagName === "FORM" ? el : el.querySelector("form");
+      if (form) {
+        const handleSubmit = (e: Event) => {
+          if (!firedRef.current) {
+            firedRef.current = true;
+            track();
+          }
+        };
+        form.addEventListener("submit", handleSubmit);
+        return () => form.removeEventListener("submit", handleSubmit);
+      }
+    }
+  }, []);
+
+  if (triggerOn === "click") {
+    return (
+      <div
+        ref={ref}
+        onClick={() => {
+          if (!firedRef.current) {
+            firedRef.current = true;
+            track();
+          }
+        }}
+      >
+        {children}
+      </div>
     );
-
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [triggerOn, fireConversion]);
-
-  const handleClick = useCallback(() => {
-    if (triggerOn !== "click") return;
-    fireConversion();
-  }, [triggerOn, fireConversion]);
-
-  return (
-    <div
-      ref={containerRef}
-      onClick={triggerOn === "click" ? handleClick : undefined}
-      style={{
-        display: "block",
-        cursor: triggerOn === "click" ? "pointer" : undefined,
-      }}
-      data-ab-experiment={experimentId}
-      data-ab-trigger={triggerOn}
-    >
-      {children}
-    </div>
-  );
+  }
+  return <div ref={ref}>{children}</div>;
 }
 
 addPropertyControls(ABConversionTrigger, {
   experimentId: {
     type: ControlType.String,
     title: "Experiment ID",
+    defaultValue: "3a9fe711-74ec-4d14-910b-666214557e54",
   },
   writeKey: {
     type: ControlType.String,
     title: "Write Key",
+    defaultValue: "c166d76d-8320-4f93-a035-ee92be66751c",
   },
   eventName: {
     type: ControlType.String,
@@ -157,14 +129,10 @@ addPropertyControls(ABConversionTrigger, {
   triggerOn: {
     type: ControlType.Enum,
     title: "Trigger On",
+    options: ["click", "mount", "visible", "submit"],
     defaultValue: "click",
-    options: ["click", "mount", "visible"],
-    optionTitles: ["Click", "Mount", "Visible (50%)"],
   },
-  children: {
-    type: ControlType.Slot,
-    title: "Content",
-  },
+  children: { type: ControlType.Slot, title: "Children" },
   respectConsent: {
     type: ControlType.Boolean,
     title: "Respect Consent",
@@ -178,6 +146,6 @@ addPropertyControls(ABConversionTrigger, {
   apiUrl: {
     type: ControlType.String,
     title: "API URL",
-    defaultValue: DEFAULT_API_URL,
+    defaultValue: "https://ab-testing-worker.kenbonfloziio.workers.dev ",
   },
 });
