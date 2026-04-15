@@ -59,101 +59,152 @@ window.ABTesting = {
 }
 </script>`;
 
-// ─── combined code component (one file with both components) ──────────────
+// ─── unified code component (ABTesting - merged variant assignment + conversion tracking) ──────────────
 
 const AB_TESTING_CODE = `import { useLayoutEffect, useState, useEffect, useRef } from "react"
 import { addPropertyControls, ControlType, RenderTarget } from "framer"
 
 const DEFAULT_API_URL = "https://ab-testing-worker.kenbonfloziio.workers.dev"
 
-// ─── ABSectionSwap ───────────────────────────────────────────────────────
-
-export function ABSectionSwap({
+export default function ABTesting({
   experimentId = "",
   writeKey = "",
   cookieDays = 30,
   split = 50,
   variantA,
   variantB,
+  eventName = "conversion",
+  triggerOn = "click",
   respectConsent = false,
   consentCookieName = "cookie_consent",
   apiUrl = DEFAULT_API_URL,
 }) {
   const [variant, setVariant] = useState("A")
   const [visible, setVisible] = useState(false)
+  const firedRef = useRef(false)
+  const ref = useRef(null)
+
+  const hasConsent = () => {
+    if (!respectConsent) return true
+    const cookies = document.cookie.split("; ")
+    const consentCookie = cookies.find((row) =>
+      row.startsWith(\`\${consentCookieName}=\`),
+    )
+    if (!consentCookie) return false
+    const value = consentCookie.split("=").slice(1).join("=")
+    return value === "true" || value === "accepted" || value === "1"
+  }
+
+  const getOrCreateVisitorId = () => {
+    const key = \`ab-user-\${experimentId}\`
+    let id = localStorage.getItem(key)
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem(key, id)
+    }
+    return id
+  }
+
+  const resolveVariant = () => {
+    if (respectConsent && !hasConsent()) return "A"
+
+    const key = \`ab_\${experimentId}\`
+    const existing = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith(\`\${key}=\`))
+
+    if (existing) {
+      const value = existing.split("=").slice(1).join("=")
+      if (value === "A" || value === "B") return value
+    }
+
+    const assigned = Math.random() * 100 < split ? "A" : "B"
+    const expires = new Date()
+    expires.setDate(expires.getDate() + cookieDays)
+    document.cookie = \`\${key}=\${assigned}; expires=\${expires.toUTCString()}; path=/; SameSite=Lax\`
+    return assigned
+  }
+
+  const trackImpression = async (assignedVariant) => {
+    if (!hasConsent()) return
+    const trackedKey = \`ab-imp-\${experimentId}\`
+    if (sessionStorage.getItem(trackedKey)) return
+    sessionStorage.setItem(trackedKey, "1")
+
+    try {
+      const visitorId = getOrCreateVisitorId()
+      const res = await fetch(\`\${apiUrl}/v1/events\`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: \`Bearer \${writeKey}\`,
+        },
+        body: JSON.stringify({
+          experiment_id: experimentId,
+          type: "impression",
+          variant: assignedVariant,
+          visitor_id: visitorId,
+        }),
+      })
+      if (!res.ok) {
+        sessionStorage.removeItem(\`ab-imp-\${experimentId}\`)
+      }
+    } catch {
+      sessionStorage.removeItem(\`ab-imp-\${experimentId}\`)
+    }
+  }
 
   useLayoutEffect(() => {
     if (RenderTarget.current?.() === RenderTarget.canvas) {
       setVisible(true)
       return
     }
-    if (!window.ABTesting) {
-      setVisible(true)
-      return
-    }
-    const assigned = window.ABTesting.assignVariant(experimentId, split, cookieDays, respectConsent, consentCookieName)
+    const assigned = resolveVariant()
     setVariant(assigned)
     setVisible(true)
-    if (!window.ABTesting.hasConsent(respectConsent, consentCookieName)) return
-    const trackedKey = \`ab-imp-\${experimentId}\`
-    if (sessionStorage.getItem(trackedKey)) return
-    sessionStorage.setItem(trackedKey, "1")
-    const visitorId = window.ABTesting.getOrCreateVisitorId(experimentId)
-    window.ABTesting.trackEvent(apiUrl, writeKey, experimentId, "impression", assigned, visitorId)
+    trackImpression(assigned)
   }, [])
 
-  return (
-    <div style={{ visibility: visible ? "visible" : "hidden" }}>
-      <div style={{ display: variant === "A" ? "contents" : "none" }}>{variantA}</div>
-      <div style={{ display: variant === "B" ? "contents" : "none" }}>{variantB}</div>
-    </div>
-  )
-}
-
-addPropertyControls(ABSectionSwap, {
-  experimentId: { type: ControlType.String, title: "Experiment ID", defaultValue: "" },
-  writeKey: { type: ControlType.String, title: "Write Key", defaultValue: "" },
-  cookieDays: { type: ControlType.Number, title: "Cookie Days", defaultValue: 30, min: 1, max: 365 },
-  split: { type: ControlType.Number, title: "Split % (A)", defaultValue: 50, min: 0, max: 100 },
-  variantA: { type: ControlType.Slot, title: "Variant A" },
-  variantB: { type: ControlType.Slot, title: "Variant B" },
-  respectConsent: { type: ControlType.Boolean, title: "Respect Consent", defaultValue: false },
-  consentCookieName: { type: ControlType.String, title: "Consent Cookie Name", defaultValue: "cookie_consent" },
-  apiUrl: { type: ControlType.String, title: "API URL", defaultValue: DEFAULT_API_URL },
-})
-
-// ─── ABConversionTrigger ─────────────────────────────────────────────────
-
-export function ABConversionTrigger({
-  experimentId = "",
-  writeKey = "",
-  eventName = "conversion",
-  triggerOn = "click",
-  children,
-  respectConsent = false,
-  consentCookieName = "cookie_consent",
-  apiUrl = DEFAULT_API_URL,
-}) {
-  const firedRef = useRef(false)
-  const ref = useRef(null)
-
-  const track = () => {
-    if (!window.ABTesting) return
-    if (!window.ABTesting.hasConsent(respectConsent, consentCookieName)) return
-    const variantCookie = document.cookie.split("; ").find(r => r.startsWith(\`ab_\${experimentId}=\`))
+  const trackConversion = () => {
+    if (!hasConsent()) return
+    const variantCookie = document.cookie
+      .split("; ")
+      .find((r) => r.startsWith(\`ab_\${experimentId}=\`))
     if (!variantCookie) return
-    const variant = variantCookie.split("=").slice(1).join("=")
-    if (variant !== "A" && variant !== "B") return
+    const v = variantCookie.split("=").slice(1).join("=")
+    if (v !== "A" && v !== "B") return
     const visitorId = localStorage.getItem(\`ab-user-\${experimentId}\`) ?? null
-    window.ABTesting.trackEvent(apiUrl, writeKey, experimentId, eventName, variant, visitorId)
+    fetch(\`\${apiUrl}/v1/events\`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: \`Bearer \${writeKey}\`,
+      },
+      body: JSON.stringify({
+        experiment_id: experimentId,
+        type: eventName,
+        variant: v,
+        visitor_id: visitorId,
+      }),
+    }).catch(() => {})
   }
 
   useEffect(() => {
-    if (triggerOn === "mount") { track(); return }
+    if (triggerOn === "mount") {
+      trackConversion()
+      return
+    }
     if (triggerOn === "visible" && ref.current) {
-      const obs = new IntersectionObserver(([e]) => {
-        if (e.isIntersecting && !firedRef.current) { firedRef.current = true; track(); obs.disconnect() }
-      }, { threshold: 0.5 })
+      const obs = new IntersectionObserver(
+        ([e]) => {
+          if (e.isIntersecting && !firedRef.current) {
+            firedRef.current = true
+            trackConversion()
+            obs.disconnect()
+          }
+        },
+        { threshold: 0.5 },
+      )
       obs.observe(ref.current)
       return () => obs.disconnect()
     }
@@ -162,7 +213,10 @@ export function ABConversionTrigger({
       const form = el.tagName === "FORM" ? el : el.querySelector("form")
       if (form) {
         const handleSubmit = () => {
-          if (!firedRef.current) { firedRef.current = true; track() }
+          if (!firedRef.current) {
+            firedRef.current = true
+            trackConversion()
+          }
         }
         form.addEventListener("submit", handleSubmit)
         return () => form.removeEventListener("submit", handleSubmit)
@@ -170,22 +224,41 @@ export function ABConversionTrigger({
     }
   }, [])
 
-  if (triggerOn === "click") {
-    return (
-      <div ref={ref} onClick={() => { if (!firedRef.current) { firedRef.current = true; track() } }}>
-        {children}
+  const handleClick =
+    triggerOn === "click"
+      ? () => {
+          if (!firedRef.current) {
+            firedRef.current = true
+            trackConversion()
+          }
+        }
+      : undefined
+
+  return (
+    <div
+      ref={ref}
+      style={{ visibility: visible ? "visible" : "hidden" }}
+      onClick={handleClick}
+    >
+      <div style={{ display: variant === "A" ? "contents" : "none" }}>
+        {variantA}
       </div>
-    )
-  }
-  return <div ref={ref}>{children}</div>
+      <div style={{ display: variant === "B" ? "contents" : "none" }}>
+        {variantB}
+      </div>
+    </div>
+  )
 }
 
-addPropertyControls(ABConversionTrigger, {
-  experimentId: { type: ControlType.String, title: "Experiment ID", defaultValue: "" },
-  writeKey: { type: ControlType.String, title: "Write Key", defaultValue: "" },
+addPropertyControls(ABTesting, {
+  experimentId: { type: ControlType.String, title: "Experiment ID" },
+  writeKey: { type: ControlType.String, title: "Write Key" },
+  cookieDays: { type: ControlType.Number, title: "Cookie Days", defaultValue: 30, min: 1, max: 365 },
+  split: { type: ControlType.Number, title: "Split % (Variant A)", defaultValue: 50, min: 0, max: 100 },
+  variantA: { type: ControlType.Slot, title: "Variant A" },
+  variantB: { type: ControlType.Slot, title: "Variant B" },
   eventName: { type: ControlType.String, title: "Event Name", defaultValue: "conversion" },
   triggerOn: { type: ControlType.Enum, title: "Trigger On", options: ["click", "mount", "visible", "submit"], optionTitles: ["Click", "Mount", "Visible (50%)", "Submit (Form)"], defaultValue: "click" },
-  children: { type: ControlType.Slot, title: "Children" },
   respectConsent: { type: ControlType.Boolean, title: "Respect Consent", defaultValue: false },
   consentCookieName: { type: ControlType.String, title: "Consent Cookie Name", defaultValue: "cookie_consent" },
   apiUrl: { type: ControlType.String, title: "API URL", defaultValue: DEFAULT_API_URL },
@@ -489,7 +562,7 @@ export function App() {
       }
 
       try {
-        // Step 2: Create ONE code file with both ABSectionSwap and ABConversionTrigger
+        // Step 2: Create ABTesting code component (unified variant + conversion tracking)
         if (framer.isAllowedTo("createCodeFile")) {
           const existingFiles = await framer.getCodeFiles();
           const hasABTestingFile = existingFiles.some(
@@ -783,22 +856,21 @@ export function App() {
             <strong>How to use</strong>
             <ol className="how-to-list">
               <li>
-                Drag <code>ABSectionSwap</code> from the Code panel (under{" "}
-                <strong>ABTesting</strong>) to your canvas. Set its{" "}
-                <strong>Experiment ID</strong> and <strong>Write Key</strong> to
+                Drag <code>ABTesting</code> from the Code panel to your canvas.
+                Set its <strong>Experiment ID</strong> and <strong>Write Key</strong> to
                 the values above.
               </li>
               <li>
                 Drop your A and B content into the Variant A / Variant B slots.
               </li>
               <li>
-                Drag <code>ABConversionTrigger</code> from the same{" "}
-                <strong>ABTesting</strong> file to wrap your CTA, using the same
-                Experiment ID and Write Key.
+                Choose a trigger mode: <strong>Click</strong> (button CTA),{" "}
+                <strong>Mount</strong> (immediate), <strong>Visible</strong> (50% in view),
+                or <strong>Submit</strong> (form submission).
               </li>
               <li>Publish your site — tracking starts automatically.</li>
               <li>
-                Create more experiments — just drag the same components again
+                Create more experiments — just drag ABTesting again
                 with different IDs. One global script handles everything!
               </li>
             </ol>
