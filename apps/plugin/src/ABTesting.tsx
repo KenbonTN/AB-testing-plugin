@@ -1,20 +1,26 @@
-import { useLayoutEffect, useState, useEffect, useRef, type ReactNode } from "react"
-import { addPropertyControls, ControlType, RenderTarget } from "framer"
+import {
+  useLayoutEffect,
+  useState,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
+import { addPropertyControls, ControlType, RenderTarget } from "framer";
 
-const DEFAULT_API_URL = "https://ab-testing-worker.kenbonfloziio.workers.dev"
+const DEFAULT_API_URL = "https://ab-testing-worker.kenbonfloziio.workers.dev";
 
 interface ABTestingProps {
-  experimentId: string
-  writeKey: string
-  cookieDays?: number
-  split?: number
-  variantA?: ReactNode
-  variantB?: ReactNode
-  eventName?: string
-  triggerOn?: "click" | "mount" | "visible" | "submit"
-  respectConsent?: boolean
-  consentCookieName?: string
-  apiUrl?: string
+  experimentId: string;
+  writeKey: string;
+  cookieDays?: number;
+  split?: number;
+  variantA?: ReactNode;
+  variantB?: ReactNode;
+  eventName?: string;
+  triggerOn?: "click" | "mount" | "visible" | "submit";
+  respectConsent?: boolean;
+  consentCookieName?: string;
+  apiUrl?: string;
 }
 
 export default function ABTesting({
@@ -30,60 +36,65 @@ export default function ABTesting({
   consentCookieName = "cookie_consent",
   apiUrl = DEFAULT_API_URL,
 }: ABTestingProps) {
-  const [variant, setVariant] = useState<"A" | "B">("A")
-  const [visible, setVisible] = useState(false)
-  const firedRef = useRef(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [variant, setVariant] = useState<"A" | "B">("A");
+  const [visible, setVisible] = useState(false);
+  const firedRef = useRef(false);
+  const impressionFiredRef = useRef(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   const hasConsent = (): boolean => {
-    if (!respectConsent) return true
-    const cookies = document.cookie.split("; ")
+    if (!respectConsent) return true;
+    const cookies = document.cookie.split("; ");
     const consentCookie = cookies.find((row) =>
       row.startsWith(`${consentCookieName}=`),
-    )
-    if (!consentCookie) return false
-    const value = consentCookie.split("=").slice(1).join("=")
-    return value === "true" || value === "accepted" || value === "1"
-  }
+    );
+    if (!consentCookie) return false;
+    const value = consentCookie.split("=").slice(1).join("=");
+    return value === "true" || value === "accepted" || value === "1";
+  };
 
   const getOrCreateVisitorId = (): string => {
-    const key = `ab-user-${experimentId}`
-    let id = localStorage.getItem(key)
+    const key = `ab-user-${experimentId}`;
+    let id = localStorage.getItem(key);
     if (!id) {
-      id = crypto.randomUUID()
-      localStorage.setItem(key, id)
+      id = crypto.randomUUID();
+      localStorage.setItem(key, id);
     }
-    return id
-  }
+    return id;
+  };
 
   const resolveVariant = (): "A" | "B" => {
-    if (respectConsent && !hasConsent()) return "A"
+    if (respectConsent && !hasConsent()) return "A";
 
-    const key = `ab_${experimentId}`
+    const key = `ab_${experimentId}`;
     const existing = document.cookie
       .split("; ")
-      .find((row) => row.startsWith(`${key}=`))
+      .find((row) => row.startsWith(`${key}=`));
 
     if (existing) {
-      const value = existing.split("=").slice(1).join("=")
-      if (value === "A" || value === "B") return value
+      const value = existing.split("=").slice(1).join("=");
+      if (value === "A" || value === "B") return value;
     }
 
-    const assigned: "A" | "B" = Math.random() * 100 < split ? "A" : "B"
-    const expires = new Date()
-    expires.setDate(expires.getDate() + cookieDays)
-    document.cookie = `${key}=${assigned}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`
-    return assigned
-  }
+    const assigned: "A" | "B" = Math.random() * 100 < split ? "A" : "B";
+    const expires = new Date();
+    expires.setDate(expires.getDate() + cookieDays);
+    document.cookie = `${key}=${assigned}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+    return assigned;
+  };
 
   const trackImpression = async (assignedVariant: "A" | "B") => {
-    if (!hasConsent()) return
-    const trackedKey = `ab-imp-${experimentId}`
-    if (sessionStorage.getItem(trackedKey)) return
-    sessionStorage.setItem(trackedKey, "1")
+    if (!hasConsent()) return;
+    const visitorId = getOrCreateVisitorId();
+
+    if (impressionFiredRef.current) return;
+    impressionFiredRef.current = true;
+
+    const sessionKey = `ab-session-imp-${experimentId}-${visitorId}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+    sessionStorage.setItem(sessionKey, "1");
 
     try {
-      const visitorId = getOrCreateVisitorId()
       const res = await fetch(`${apiUrl}/v1/events`, {
         method: "POST",
         headers: {
@@ -96,37 +107,44 @@ export default function ABTesting({
           variant: assignedVariant,
           visitor_id: visitorId,
         }),
-      })
+      });
       if (!res.ok) {
-        sessionStorage.removeItem(`ab-imp-${experimentId}`)
+
+        sessionStorage.removeItem(sessionKey);
+        impressionFiredRef.current = false;
       }
     } catch {
-      sessionStorage.removeItem(`ab-imp-${experimentId}`)
+      sessionStorage.removeItem(sessionKey);
+      impressionFiredRef.current = false;
     }
-  }
+  };
 
-  // ──── Assign variant + track impression ──────────────────────────────────
+
   useLayoutEffect(() => {
-    if (RenderTarget.current() === RenderTarget.canvas) {
-      setVisible(true)
-      return
+    const target = RenderTarget.current();
+
+    if (target === RenderTarget.canvas) {
+      setVisible(true);
+      return;
     }
-    const assigned = resolveVariant()
-    setVariant(assigned)
-    setVisible(true)
-    trackImpression(assigned)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const assigned = resolveVariant();
+    setVariant(assigned);
+    setVisible(true);
+
+    trackImpression(assigned);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ──── Track conversion event ─────────────────────────────────────────────
   const trackConversion = () => {
-    if (!hasConsent()) return
+    if (!hasConsent()) return;
     const variantCookie = document.cookie
       .split("; ")
-      .find((r) => r.startsWith(`ab_${experimentId}=`))
-    if (!variantCookie) return
-    const v = variantCookie.split("=").slice(1).join("=")
-    if (v !== "A" && v !== "B") return
-    const visitorId = localStorage.getItem(`ab-user-${experimentId}`) ?? null
+      .find((r) => r.startsWith(`ab_${experimentId}=`));
+    if (!variantCookie) return;
+    const v = variantCookie.split("=").slice(1).join("=");
+    if (v !== "A" && v !== "B") return;
+    const visitorId = localStorage.getItem(`ab-user-${experimentId}`) ?? null;
     fetch(`${apiUrl}/v1/events`, {
       method: "POST",
       headers: {
@@ -139,54 +157,54 @@ export default function ABTesting({
         variant: v,
         visitor_id: visitorId,
       }),
-    }).catch(() => {})
-  }
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     if (triggerOn === "mount") {
-      trackConversion()
-      return
+      trackConversion();
+      return;
     }
     if (triggerOn === "visible" && ref.current) {
       const obs = new IntersectionObserver(
         ([e]) => {
           if (e.isIntersecting && !firedRef.current) {
-            firedRef.current = true
-            trackConversion()
-            obs.disconnect()
+            firedRef.current = true;
+            trackConversion();
+            obs.disconnect();
           }
         },
         { threshold: 0.5 },
-      )
-      obs.observe(ref.current)
-      return () => obs.disconnect()
+      );
+      obs.observe(ref.current);
+      return () => obs.disconnect();
     }
     if (triggerOn === "submit" && ref.current) {
-      const el = ref.current as any
-      const form = el.tagName === "FORM" ? el : el.querySelector("form")
+      const el = ref.current as any;
+      const form = el.tagName === "FORM" ? el : el.querySelector("form");
       if (form) {
         const handleSubmit = () => {
           if (!firedRef.current) {
-            firedRef.current = true
-            trackConversion()
+            firedRef.current = true;
+            trackConversion();
           }
-        }
-        form.addEventListener("submit", handleSubmit)
-        return () => form.removeEventListener("submit", handleSubmit)
+        };
+        form.addEventListener("submit", handleSubmit);
+        return () => form.removeEventListener("submit", handleSubmit);
       }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ──── Render ─────────────────────────────────────────────────────────────
   const handleClick =
     triggerOn === "click"
       ? () => {
           if (!firedRef.current) {
-            firedRef.current = true
-            trackConversion()
+            firedRef.current = true;
+            trackConversion();
           }
         }
-      : undefined
+      : undefined;
 
   return (
     <div
@@ -201,7 +219,7 @@ export default function ABTesting({
         {variantB}
       </div>
     </div>
-  )
+  );
 }
 
 addPropertyControls(ABTesting, {
@@ -262,4 +280,4 @@ addPropertyControls(ABTesting, {
     title: "API URL",
     defaultValue: DEFAULT_API_URL,
   },
-})
+});
