@@ -1,6 +1,6 @@
 {
   "id": "abtest",
-  "name": "A/B Testing",
+  "name": "DUAL Plugin",
   "api": "1.0.0",
   "icon": "./icon.svg",
   "modes": ["canvas", "code"],
