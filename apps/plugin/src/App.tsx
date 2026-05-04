@@ -1080,14 +1080,23 @@ function ListScreen({ projectName, experiments, linkedExpId, refreshing, selecte
 }
 
 function CreateScreen({ selectedLayer, initialName, initialSplit, initialCookieDays, onCancel, onCreate, loading, error }: any) {
-  const [name, setName] = useState(initialName || '');
+  const parts = (initialName || '').split('/');
+  const [page, setPage] = useState(parts[0] || '');
+  const [section, setSection] = useState(parts[1] || '');
+  const [tempo, setTempo] = useState(parts[2] || '');
   const [split, setSplit] = useState(initialSplit || 50);
   const [cookie, setCookie] = useState(initialCookieDays || 30);
+  const [validationError, setValidationError] = useState('');
 
-  const valid = name.trim().length > 0;
+  const valid = page.trim().length > 0 && section.trim().length > 0 && tempo.trim().length > 0;
+  
   const submit = () => {
-    if (!valid) return;
-    onCreate({ name: name.trim(), split, cookieDays: cookie });
+    if (!valid) {
+      setValidationError('All three segments are required');
+      return;
+    }
+    setValidationError('');
+    onCreate({ name: `${page.trim()}/${section.trim()}/${tempo.trim()}`, split, cookieDays: cookie });
   };
 
   return (
@@ -1124,8 +1133,20 @@ function CreateScreen({ selectedLayer, initialName, initialSplit, initialCookieD
           </div>
         )}
 
-        <Field label="Experiment name" hint="Used to identify this test in your dashboard." error={error}>
-          <TextInput value={name} onChange={setName} placeholder="e.g. Hero CTA copy" autoFocus />
+        <Field label="Experiment name" hint="Used to identify this test in your dashboard." error={error || validationError}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <TextInput value={page} onChange={(v: string) => { setPage(v); setValidationError(''); }} placeholder="Page" autoFocus />
+            </div>
+            <span style={{ color: 'var(--fg-3)', fontSize: 13, userSelect: 'none' }}>/</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <TextInput value={section} onChange={(v: string) => { setSection(v); setValidationError(''); }} placeholder="Section" />
+            </div>
+            <span style={{ color: 'var(--fg-3)', fontSize: 13, userSelect: 'none' }}>/</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <TextInput value={tempo} onChange={(v: string) => { setTempo(v); setValidationError(''); }} placeholder="Tempo" />
+            </div>
+          </div>
         </Field>
 
         <Field label="Traffic split" suffix={`${split}% A · ${100 - split}% B`} hint="Percent of visitors who see Variant A. The rest see B.">
@@ -1297,7 +1318,7 @@ function MaturityBanner({ maturity }: any) {
   );
 }
 
-function VariantRow({ variant, data, rate, maxRate, isWinner, accent }: any) {
+function VariantRow({ variant, data, rate, maxRate, isWinner, accent, status }: any) {
   const widthPct = maxRate > 0 ? (rate / maxRate) * 100 : 0;
   return (
     <div style={{
@@ -1326,7 +1347,7 @@ function VariantRow({ variant, data, rate, maxRate, isWinner, accent }: any) {
             color: 'var(--green)',
             padding: '1px 6px', borderRadius: 3,
             background: 'rgba(52,211,153,0.10)',
-          }}>{Icon.trophy(10)} winner</span>
+          }}>{Icon.trophy(10)} {status === 'completed' ? 'winner' : 'leading'}</span>
         )}
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
@@ -1493,6 +1514,7 @@ function StatsScreen({ experiment, stats, writeKey, onBack, onUpdateStatus, onDe
               maxRate={Math.max(aRate, bRate, 0.1)}
               isWinner={winner === 'A' && lift > 5}
               accent
+              status={experiment.status}
             />
             <VariantRow
               variant="B"
@@ -1500,6 +1522,7 @@ function StatsScreen({ experiment, stats, writeKey, onBack, onUpdateStatus, onDe
               rate={bRate}
               maxRate={Math.max(aRate, bRate, 0.1)}
               isWinner={winner === 'B' && lift > 5}
+              status={experiment.status}
             />
           </div>
         </div>
