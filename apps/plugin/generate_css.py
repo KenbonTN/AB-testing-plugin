@@ -1,0 +1,100 @@
+css_content = """
+:root {
+  --accent: #ff5a1f;
+  --accent-soft: rgba(255, 90, 31, 0.14);
+  --accent-glow: rgba(255, 90, 31, 0.35);
+  --bg-0: #07080d;
+  --bg-1: #0f1118;
+  --bg-2: #161921;
+  --bg-3: #1f222b;
+  --bg-4: #252a33;
+  --line-1: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.12);
+  --line-3: rgba(255, 255, 255, 0.16);
+  --fg-0: #f5f5f7;
+  --fg-1: #d5d5d8;
+  --fg-2: #9b9ba7;
+  --fg-3: #7d7f8d;
+  --green-soft: rgba(52, 211, 153, 0.12);
+  --amber-soft: rgba(245, 197, 66, 0.12);
+  --green: #34d399;
+  --amber: #f5c542;
+  --red: #ef4444;
+  --blue: #6ea8fe;
+  --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-0);
+  color: var(--fg-0);
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button, input {
+  font: inherit;
+  margin: 0;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  padding: 0;
+  background: transparent;
+}
+
+/* Animations */
+@keyframes pulse-dot {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes count-tick {
+  0% { transform: translateY(-4px); opacity: 0.5; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.app-root {
+  min-height: 100vh;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at top right, rgba(255, 90, 31, 0.08), transparent 28%), var(--bg-0);
+}
+"""
+
+with open("/home/yadeni/ab-testing-platform/apps/plugin/src/App.css", "w") as f:
+    f.write(css_content.strip())

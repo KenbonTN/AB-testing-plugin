@@ -47,7 +47,7 @@ export default {
     try {
       if (url.pathname === "/v1/projects" && request.method === "POST") {
         // No auth, create project
-        const body = await request.json() as any;
+        const body = (await request.json()) as any;
         const { name } = body;
         const writeKey = generateUUID();
         const readKey = generateUUID();
@@ -103,7 +103,7 @@ export default {
             { error: "Unauthorized" },
             { status: 401, headers: cors },
           );
-        const body = await request.json() as any;
+        const body = (await request.json()) as any;
         const { name, split_a, cookie_days } = body;
         const experimentId = generateUUID();
         await env.DB.prepare(
@@ -180,8 +180,31 @@ export default {
                 )
               : 0;
         }
+
+        // Compute trends for the last 24 hours
+        const twentyFourHoursAgo = new Date(
+          Date.now() - 24 * 60 * 60 * 1000,
+        ).toISOString();
+        const trends = await env.DB.prepare(
+          `SELECT 
+             strftime('%Y-%m-%dT%H:00:00.000Z', created_at) as hour,
+             COUNT(*) as count
+           FROM events 
+           WHERE experiment_id = ? 
+             AND type = 'impression' 
+             AND created_at >= ?
+           GROUP BY hour
+           ORDER BY hour ASC`,
+        )
+          .bind(experimentId, twentyFourHoursAgo)
+          .all();
+
         return Response.json(
-          { experiment_id: experimentId, variants: stats },
+          {
+            experiment_id: experimentId,
+            variants: stats,
+            trends: trends.results || [],
+          },
           { headers: cors },
         );
       } else if (
@@ -230,7 +253,7 @@ export default {
           );
         const parts = url.pathname.split("/");
         const experimentId = parts[3];
-        const body = await request.json() as any;
+        const body = (await request.json()) as any;
         const { status } = body;
         // Check ownership
         const exp = await env.DB.prepare(
@@ -256,7 +279,7 @@ export default {
             { error: "Unauthorized" },
             { status: 401, headers: cors },
           );
-        const body = await request.json() as any;
+        const body = (await request.json()) as any;
         const { experiment_id, type, variant, visitor_id } = body;
         // Check experiment belongs to project
         const exp = await env.DB.prepare(

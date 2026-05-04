@@ -9,7 +9,7 @@ import { addPropertyControls, ControlType, RenderTarget } from "framer";
 
 const DEFAULT_API_URL = "https://ab-testing-worker.kenbonfloziio.workers.dev";
 
-interface ABTestingProps {
+interface DUALProps {
   experimentId: string;
   writeKey: string;
   cookieDays?: number;
@@ -17,13 +17,14 @@ interface ABTestingProps {
   variantA?: ReactNode;
   variantB?: ReactNode;
   eventName?: string;
-  triggerOn?: "click" | "mount" | "visible" | "submit";
+  triggerOn?: "click" | "hover" | "submit" | "mount" | "visible";
   respectConsent?: boolean;
   consentCookieName?: string;
   apiUrl?: string;
+  onClick?: () => void;
 }
 
-export default function ABTesting({
+export default function DUAL({
   experimentId = "",
   writeKey = "",
   cookieDays = 30,
@@ -35,7 +36,8 @@ export default function ABTesting({
   respectConsent = false,
   consentCookieName = "cookie_consent",
   apiUrl = DEFAULT_API_URL,
-}: ABTestingProps) {
+  onClick,
+}: DUALProps) {
   const [variant, setVariant] = useState<"A" | "B">("A");
   const [visible, setVisible] = useState(false);
   const firedRef = useRef(false);
@@ -54,7 +56,7 @@ export default function ABTesting({
   };
 
   const getOrCreateVisitorId = (): string => {
-    const key = `ab-user-${experimentId}`;
+    const key = `dual-user-${experimentId}`;
     let id = localStorage.getItem(key);
     if (!id) {
       id = crypto.randomUUID();
@@ -66,7 +68,7 @@ export default function ABTesting({
   const resolveVariant = (): "A" | "B" => {
     if (respectConsent && !hasConsent()) return "A";
 
-    const key = `ab_${experimentId}`;
+    const key = `dual_${experimentId}`;
     const existing = document.cookie
       .split("; ")
       .find((row) => row.startsWith(`${key}=`));
@@ -90,7 +92,7 @@ export default function ABTesting({
     if (impressionFiredRef.current) return;
     impressionFiredRef.current = true;
 
-    const sessionKey = `ab-session-imp-${experimentId}-${visitorId}`;
+    const sessionKey = `dual-session-imp-${experimentId}-${visitorId}`;
     if (sessionStorage.getItem(sessionKey)) return;
     sessionStorage.setItem(sessionKey, "1");
 
@@ -109,7 +111,6 @@ export default function ABTesting({
         }),
       });
       if (!res.ok) {
-
         sessionStorage.removeItem(sessionKey);
         impressionFiredRef.current = false;
       }
@@ -119,11 +120,11 @@ export default function ABTesting({
     }
   };
 
-
   useLayoutEffect(() => {
     const target = RenderTarget.current();
 
     if (target === RenderTarget.canvas) {
+      setVariant("A");
       setVisible(true);
       return;
     }
@@ -140,11 +141,11 @@ export default function ABTesting({
     if (!hasConsent()) return;
     const variantCookie = document.cookie
       .split("; ")
-      .find((r) => r.startsWith(`ab_${experimentId}=`));
+      .find((r) => r.startsWith(`dual_${experimentId}=`));
     if (!variantCookie) return;
     const v = variantCookie.split("=").slice(1).join("=");
     if (v !== "A" && v !== "B") return;
-    const visitorId = localStorage.getItem(`ab-user-${experimentId}`) ?? null;
+    const visitorId = localStorage.getItem(`dual-user-${experimentId}`) ?? null;
     fetch(`${apiUrl}/v1/events`, {
       method: "POST",
       headers: {
@@ -161,24 +162,6 @@ export default function ABTesting({
   };
 
   useEffect(() => {
-    if (triggerOn === "mount") {
-      trackConversion();
-      return;
-    }
-    if (triggerOn === "visible" && ref.current) {
-      const obs = new IntersectionObserver(
-        ([e]) => {
-          if (e.isIntersecting && !firedRef.current) {
-            firedRef.current = true;
-            trackConversion();
-            obs.disconnect();
-          }
-        },
-        { threshold: 0.5 },
-      );
-      obs.observe(ref.current);
-      return () => obs.disconnect();
-    }
     if (triggerOn === "submit" && ref.current) {
       const el = ref.current as any;
       const form = el.tagName === "FORM" ? el : el.querySelector("form");
@@ -193,6 +176,26 @@ export default function ABTesting({
         return () => form.removeEventListener("submit", handleSubmit);
       }
     }
+    if (triggerOn === "mount") {
+      trackConversion();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (triggerOn === "visible" && ref.current) {
+      const obs = new IntersectionObserver(
+        ([e]) => {
+          if (e.isIntersecting && !firedRef.current) {
+            firedRef.current = true;
+            trackConversion();
+            obs.disconnect();
+          }
+        },
+        { threshold: 0.5 },
+      );
+      obs.observe(ref.current);
+      return () => obs.disconnect();
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ──── Render ─────────────────────────────────────────────────────────────
@@ -206,11 +209,22 @@ export default function ABTesting({
         }
       : undefined;
 
+  const handleMouseEnter =
+    triggerOn === "hover"
+      ? () => {
+          if (!firedRef.current) {
+            firedRef.current = true;
+            trackConversion();
+          }
+        }
+      : undefined;
+
   return (
     <div
       ref={ref}
       style={{ visibility: visible ? "visible" : "hidden" }}
       onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
     >
       <div style={{ display: variant === "A" ? "contents" : "none" }}>
         {variantA}
@@ -222,7 +236,7 @@ export default function ABTesting({
   );
 }
 
-addPropertyControls(ABTesting, {
+addPropertyControls(DUAL, {
   experimentId: {
     type: ControlType.String,
     title: "Experiment ID",
@@ -260,9 +274,9 @@ addPropertyControls(ABTesting, {
   },
   triggerOn: {
     type: ControlType.Enum,
-    title: "Trigger On",
-    options: ["click", "mount", "visible", "submit"],
-    optionTitles: ["Click", "Mount", "Visible (50%)", "Submit (Form)"],
+    title: "Conversion event",
+    options: ["click", "hover", "submit"],
+    optionTitles: ["Click", "Hover", "Submit (Form)"],
     defaultValue: "click",
   },
   respectConsent: {
