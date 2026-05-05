@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } fr
 import type { Experiment, ExperimentStats } from "@ab-platform/types";
 import { framer, supportsName, type CanvasNode } from "framer-plugin";
 import "./App.css";
+import DUAL_TESTING_CODE from "./DUAL.tsx?raw";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -13,8 +14,7 @@ let injectionLock: Promise<void> | null = null;
 const GLOBAL_SCRIPT_HTML =
   '<script>\nwindow.DUAL = {\n  hasConsent(respectConsent, consentCookieName = "cookie_consent") {\n    if (!respectConsent) return true\n    const c = document.cookie.split("; ").find(r => r.startsWith(`${consentCookieName}=`))\n    if (!c) return false\n    const v = c.split("=").slice(1).join("=")\n    return v === "true" || v === "accepted" || v === "1"\n  },\n\n  getOrCreateVisitorId(experimentId) {\n    const key = `dual-user-${experimentId}`\n    let id = localStorage.getItem(key)\n    if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id) }\n    return id\n  },\n\n  assignVariant(experimentId, split = 50, cookieDays = 30, respectConsent = false, consentCookieName = "cookie_consent") {\n    if (respectConsent && !this.hasConsent(respectConsent, consentCookieName)) return "A"\n    const key = `dual_${experimentId}`\n    const existing = document.cookie.split("; ").find(r => r.startsWith(`${key}=`))\n    if (existing) {\n      const v = existing.split("=").slice(1).join("=")\n      if (v === "A" || v === "B") return v\n    }\n    const assigned = Math.random() * 100 < split ? "A" : "B"\n    const expires = new Date()\n    expires.setDate(expires.getDate() + cookieDays)\n    document.cookie = `${key}=${assigned}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`\n    return assigned\n  },\n\n  trackEvent(apiUrl, writeKey, experimentId, type, variant, visitorId) {\n    fetch(`${apiUrl}/v1/events`, {\n      method: "POST",\n      headers: { "Content-Type": "application/json", Authorization: `Bearer ${writeKey}` },\n      body: JSON.stringify({ experiment_id: experimentId, type, variant, visitor_id: visitorId }),\n    }).catch(() => {})\n  },\n}\n</script>';
 
-const DUAL_TESTING_CODE =
-  "import { useLayoutEffect, useState, useEffect, useRef } from \'react\'\nimport { addPropertyControls, ControlType, RenderTarget } from \'framer\'\n\nconst DEFAULT_API_URL = \'https://ab-testing-worker.kenbonfloziio.workers.dev\'\n\nexport default function DUAL({\n  experimentId = \'\',\n  writeKey = \'\',\n  cookieDays = 30,\n  split = 50,\n  variantA,\n  variantB,\n  eventName = \'conversion\',\n  triggerOn = \'click\',\n  respectConsent = false,\n  consentCookieName = \'cookie_consent\',\n  apiUrl = DEFAULT_API_URL,\n}) {\n  const [variant, setVariant] = useState(\'A\')\n  const [visible, setVisible] = useState(false)\n  const firedRef = useRef(false)\n  const ref = useRef(null)\n\n  const hasConsent = () => {\n    if (!respectConsent) return true\n    const cookies = document.cookie.split(\; \')\n    const consent = cookies.find((row) => row.startsWith(`${consentCookieName}=`))\n    if (!consent) return false\n    const value = consent.split(\'=\').slice(1).join(\'=\')\n    return value === \'true\' || value === \'accepted\' || value === \'1\'\n  }\n\n  const getOrCreateVisitorId = () => {\n    const key = `dual-user-${experimentId}`\n    let id = localStorage.getItem(key)\n    if (!id) {\n      id = crypto.randomUUID()\n      localStorage.setItem(key, id)\n    }\n    return id\n  }\n\n  const resolveVariant = () => {\n    if (respectConsent && !hasConsent()) return \'A\'\n    const key = `dual_${experimentId}`\n    const existing = document.cookie.split(\; \').find((row) => row.startsWith(`${key}=`))\n    if (existing) {\n      const value = existing.split(\'=\').slice(1).join(\'=\')\n      if (value === \'A\' || value === \'B\') return value\n    }\n    const assigned = Math.random() * 100 < split ? \'A\' : \'B\'\n    const expires = new Date()\n    expires.setDate(expires.getDate() + cookieDays)\n    document.cookie = `${key}=${assigned}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`\n    return assigned\n  }\n\n  const trackImpression = async (assignedVariant) => {\n    if (!hasConsent()) return\n    const trackedKey = `dual-imp-${experimentId}`\n    if (sessionStorage.getItem(trackedKey)) return\n    sessionStorage.setItem(trackedKey, \'1\')\n\n    try {\n      const visitorId = getOrCreateVisitorId()\n      const res = await fetch(`${apiUrl}/v1/events`, {\n        method: \'POST\',\n        headers: {\n          \'Content-Type\': \'application/json\',\n          Authorization: `Bearer ${writeKey}`,\n        },\n        body: JSON.stringify({\n          experiment_id: experimentId,\n          type: \'impression\',\n          variant: assignedVariant,\n          visitor_id: visitorId,\n        }),\n      })\n      if (!res.ok) {\n        sessionStorage.removeItem(`dual-imp-${experimentId}`)\n      }\n    } catch {\n      sessionStorage.removeItem(`dual-imp-${experimentId}`)\n    }\n  }\n\n  useLayoutEffect(() => {\n    if (RenderTarget.current?.() === RenderTarget.canvas) {\n      setVisible(true)\n      return\n    }\n    const assigned = resolveVariant()\n    setVariant(assigned)\n    setVisible(true)\n    trackImpression(assigned)\n  }, [])\n\n  const trackConversion = () => {\n    if (!hasConsent()) return\n    const variantCookie = document.cookie\n      .split(\; \')\n      .find((r) => r.startsWith(`dual_${experimentId}=`))\n    if (!variantCookie) return\n    const v = variantCookie.split(\'=\').slice(1).join(\'=\')\n    if (v !== \'A\' && v !== \'B\') return\n    const visitorId = localStorage.getItem(`dual-user-${experimentId}`) ?? null\n    fetch(`${apiUrl}/v1/events`, {\n      method: \'POST\',\n      headers: {\n        \'Content-Type\': \'application/json\',\n        Authorization: `Bearer ${writeKey}`,\n      },\n      body: JSON.stringify({\n        experiment_id: experimentId,\n        type: eventName,\n        variant: v,\n        visitor_id: visitorId,\n      }),\n    }).catch(() => {})\n  }\n\n  useEffect(() => {\n    if (triggerOn === \'mount\') {\n      trackConversion()\n      return\n    }\n    if (triggerOn === \'visible\' && ref.current) {\n      const obs = new IntersectionObserver(\n        ([e]) => {\n          if (e.isIntersecting && !firedRef.current) {\n            firedRef.current = true\n            trackConversion()\n            obs.disconnect()\n          }\n        },\n        { threshold: 0.5 },\n      )\n      obs.observe(ref.current)\n      return () => obs.disconnect()\n    }\n    if (triggerOn === \'submit\' && ref.current) {\n      const el = ref.current\n      const form = el.tagName === \'FORM\' ? el : el.querySelector(\'form\')\n      if (form) {\n        const handleSubmit = () => {\n          if (!firedRef.current) {\n            firedRef.current = true\n            trackConversion()\n          }\n        }\n        form.addEventListener(\'submit\', handleSubmit)\n        return () => form.removeEventListener(\'submit\', handleSubmit)\n      }\n    }\n  }, [])\n\n  const handleClick =\n    triggerOn === \'click\'\n      ? () => {\n          if (!firedRef.current) {\n            firedRef.current = true\n            trackConversion()\n          }\n        }\n      : undefined\n\n  return (\n    <div ref={ref} style={{ visibility: visible ? \'visible\' : \'hidden\' }} onClick={handleClick}>\n      <div style={{ display: variant === \'A\' ? \'contents\' : \'none\' }}>{variantA}</div>\n      <div style={{ display: variant === \'B\' ? \'contents\' : \'none\' }}>{variantB}</div>\n    </div>\n  )\n}\n\naddPropertyControls(DUAL, {\n  experimentId: { type: ControlType.String, title: \'Experiment ID\' },\n  writeKey: { type: ControlType.String, title: \'Write Key\' },\n  cookieDays: { type: ControlType.Number, title: \'Cookie Days\', defaultValue: 30, min: 1, max: 365 },\n  split: { type: ControlType.Number, title: \'Split % (Variant A)\', defaultValue: 50, min: 0, max: 100 },\n  variantA: { type: ControlType.Slot, title: \'Variant A\' },\n  variantB: { type: ControlType.Slot, title: \'Variant B\' },\n  eventName: { type: ControlType.String, title: \'Event Name\', defaultValue: \'conversion\' },\n  triggerOn: {\n    type: ControlType.Enum,\n    title: \'Trigger On\',\n    options: [\'click\', \'mount\', \'visible\', \'submit\'],\n    optionTitles: [\'Click\', \'Mount\', \'Visible (50%)\', \'Submit (Form)\'],\n    defaultValue: \'click\',\n  },\n  respectConsent: { type: ControlType.Boolean, title: \'Respect Consent\', defaultValue: false },\n  consentCookieName: { type: ControlType.String, title: \'Consent Cookie Name\', defaultValue: \'cookie_consent\' },\n  apiUrl: { type: ControlType.String, title: \'API URL\', defaultValue: DEFAULT_API_URL },\n})";
+;
 
 function formatNum(n: number) {
   if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
@@ -2016,16 +2016,19 @@ export function App() {
     }
   };
 
-  const injectComponents = async () => {
+  const injectCodeComponent = async () => {
     if (injectionLock) {
       await injectionLock;
       return;
     }
+    
     injectionLock = (async () => {
       try {
         if (framer.isAllowedTo("setCustomCode")) {
           const existing = await framer.getCustomCode();
-          if (!existing.headEnd?.html) {
+          const currentHtml = existing.headEnd?.html || "";
+          // Only inject GLOBAL_SCRIPT_HTML if headEnd is completely empty
+          if (!currentHtml.trim()) {
             await framer.setCustomCode({
               location: "headEnd",
               html: GLOBAL_SCRIPT_HTML,
@@ -2033,16 +2036,18 @@ export function App() {
           }
         }
       } catch {}
+
       try {
         if (framer.isAllowedTo("createCodeFile")) {
           const existingFiles = await framer.getCodeFiles();
-          const hasDUAL = existingFiles.some((f) => f.name === "DUAL");
+          const hasDUAL = existingFiles.some((f) => f.name === "DUAL" || f.name === "DUAL.tsx");
           if (!hasDUAL) {
             await framer.createCodeFile("DUAL", DUAL_TESTING_CODE);
           }
         }
       } catch {}
     })();
+    
     await injectionLock;
   };
 
@@ -2077,7 +2082,7 @@ export function App() {
         ]);
         setNodeLinkedExpId(data.experiment_id);
       }
-      await injectComponents();
+      await injectCodeComponent();
       setScreen("created");
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : String(e));

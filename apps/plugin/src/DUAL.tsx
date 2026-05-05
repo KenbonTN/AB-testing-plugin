@@ -17,11 +17,10 @@ interface DUALProps {
   variantA?: ReactNode;
   variantB?: ReactNode;
   eventName?: string;
-  triggerOn?: "click" | "hover" | "submit" | "mount" | "visible";
+  triggerOn?: "click" | "hover" | "submit";
   respectConsent?: boolean;
   consentCookieName?: string;
   apiUrl?: string;
-  onClick?: () => void;
 }
 
 export default function DUAL({
@@ -36,7 +35,6 @@ export default function DUAL({
   respectConsent = false,
   consentCookieName = "cookie_consent",
   apiUrl = DEFAULT_API_URL,
-  onClick,
 }: DUALProps) {
   const [variant, setVariant] = useState<"A" | "B">("A");
   const [visible, setVisible] = useState(false);
@@ -124,7 +122,6 @@ export default function DUAL({
     const target = RenderTarget.current();
 
     if (target === RenderTarget.canvas) {
-      setVariant("A");
       setVisible(true);
       return;
     }
@@ -175,26 +172,6 @@ export default function DUAL({
         form.addEventListener("submit", handleSubmit);
         return () => form.removeEventListener("submit", handleSubmit);
       }
-    }
-    if (triggerOn === "mount") {
-      trackConversion();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (triggerOn === "visible" && ref.current) {
-      const obs = new IntersectionObserver(
-        ([e]) => {
-          if (e.isIntersecting && !firedRef.current) {
-            firedRef.current = true;
-            trackConversion();
-            obs.disconnect();
-          }
-        },
-        { threshold: 0.5 },
-      );
-      obs.observe(ref.current);
-      return () => obs.disconnect();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

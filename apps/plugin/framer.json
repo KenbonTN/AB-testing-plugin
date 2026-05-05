@@ -1,14 +1,9 @@
 {
   "id": "abtest",
-  "name": "DUAL",
-  "version": "1.0.0",
+  "name": "DUAL PLUGIN",
+  "api": "3.0.0",
   "icon": "./icon.svg",
   "modes": ["canvas", "code"],
   "main": "src/main.tsx",
-  "components": [
-    {
-      "name": "DUAL/DUALComponents",
-      "path": "src/DUAL.tsx"
-    }
-  ]
+  "components": ["src/DUAL.tsx"]
 }
